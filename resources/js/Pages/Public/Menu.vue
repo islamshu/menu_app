@@ -43,8 +43,16 @@ const activeId = ref(props.categories[0]?.id ?? null);
 const query = computed(() => search.value.trim().toLowerCase());
 const isSearching = computed(() => query.value.length > 0);
 
+const virtualCategory = computed(
+    () => props.categories.find((category) => category.virtual === true) ?? null,
+);
+
+const regularCategories = computed(() =>
+    props.categories.filter((category) => category.virtual !== true),
+);
+
 const allItems = computed(() =>
-    props.categories.flatMap((category) => category.items),
+    regularCategories.value.flatMap((category) => category.items),
 );
 
 const searchResults = computed(() => {
@@ -63,7 +71,7 @@ const searchResults = computed(() => {
     });
 });
 
-const hasMenu = computed(() => props.categories.length > 0);
+const hasMenu = computed(() => regularCategories.value.length > 0);
 
 const applyLocale = (code) => {
     const option = props.restaurant.locales.find(
@@ -285,46 +293,54 @@ watch(locale, () => {
             </template>
 
             <template v-else>
-                <section
-                    v-if="featured.length"
-                    class="pt-10"
-                    :aria-label="
-                        locale === 'ar' ? 'أطباق مميزة' : 'Featured dishes'
-                    "
-                >
-                    <div class="mb-6 flex items-center gap-4">
-                        <h2
-                            class="font-display text-2xl leading-tight text-ink sm:text-3xl"
-                        >
-                            {{ locale === 'ar' ? 'أطباق مميزة' : 'Featured' }}
-                        </h2>
-                        <span
-                            class="h-px flex-1 bg-ink-line"
-                            aria-hidden="true"
-                        />
-                    </div>
-
-                    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        <MenuProductCard
-                            v-for="item in featured"
-                            :key="item.id"
-                            :item="item"
-                            :locale="locale"
-                            :currency="restaurant.currency"
-                            @open="openItem"
-                        />
-                    </div>
-                </section>
-
                 <div
-                    v-if="hasMenu"
-                    :class="featured.length ? 'mt-16 space-y-16' : 'mt-10 space-y-16'"
+                    v-if="hasMenu || featured.length"
+                    class="mt-10 space-y-16"
                 >
                     <MenuSection
-                        v-for="(category, index) in categories"
+                        v-if="virtualCategory"
+                        :category="virtualCategory"
+                        :index="1"
+                        :locale="locale"
+                        :currency="restaurant.currency"
+                        @open="openItem"
+                    />
+
+                    <section
+                        v-if="featured.length"
+                        :aria-label="
+                            locale === 'ar' ? 'أطباق مميزة' : 'Featured dishes'
+                        "
+                    >
+                        <div class="mb-6 flex items-center gap-4">
+                            <h2
+                                class="font-display text-2xl leading-tight text-ink sm:text-3xl"
+                            >
+                                {{ locale === 'ar' ? 'أطباق مميزة' : 'Featured' }}
+                            </h2>
+                            <span
+                                class="h-px flex-1 bg-ink-line"
+                                aria-hidden="true"
+                            />
+                        </div>
+
+                        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            <MenuProductCard
+                                v-for="item in featured"
+                                :key="item.id"
+                                :item="item"
+                                :locale="locale"
+                                :currency="restaurant.currency"
+                                @open="openItem"
+                            />
+                        </div>
+                    </section>
+
+                    <MenuSection
+                        v-for="(category, index) in regularCategories"
                         :key="category.id"
                         :category="category"
-                        :index="index + 1"
+                        :index="index + (virtualCategory ? 2 : 1)"
                         :locale="locale"
                         :currency="restaurant.currency"
                         @open="openItem"

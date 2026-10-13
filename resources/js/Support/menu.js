@@ -5,26 +5,7 @@
  * about and reused by the hero, navigation, cards and modal alike.
  */
 
-/**
- * Resolve a translated field (JSON map like { ar, en }) for a locale.
- * Falls back to the restaurant default locale, then the first non-empty value.
- */
-export function translate(field, locale = 'ar', fallbackLocale = 'ar') {
-    if (!field) {
-        return '';
-    }
-
-    if (typeof field === 'string') {
-        return field;
-    }
-
-    return (
-        field[locale] ||
-        field[fallbackLocale] ||
-        Object.values(field).find((value) => value) ||
-        ''
-    );
-}
+export { translate } from './i18n';
 
 /**
  * Format a price using the restaurant currency and the active locale.
@@ -70,7 +51,14 @@ export function hasDiscount(item) {
 
 /**
  * A stable DOM id for a category section, used for smooth scrolling.
+ *
+ * Virtual categories (e.g. the "Most Popular" category) expose their own
+ * collision-free anchor; real categories stay namespaced under `cat-`.
  */
 export function categoryAnchor(category) {
+    if (category?.virtual) {
+        return category.slug ?? category.id ?? 'most-popular';
+    }
+
     return `cat-${category.slug ?? category.id}`;
 }

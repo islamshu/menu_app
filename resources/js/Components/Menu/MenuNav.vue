@@ -21,7 +21,7 @@ const props = defineProps({
         default: () => [],
     },
     activeId: {
-        type: [Number, null],
+        type: [Number, String, null],
         default: null,
     },
     search: {
@@ -193,15 +193,22 @@ onBeforeUnmount(() => {
                     v-for="category in categories"
                     :key="category.id"
                     type="button"
-                    class="shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition"
+                    class="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition"
                     :class="
                         activeId === category.id
                             ? 'border-ink bg-ink text-paper'
-                            : 'border-ink-line bg-white text-ink-soft hover:border-ember-300 hover:text-ink'
+                            : category.virtual
+                              ? 'border-ember-200 bg-ember-50 text-ember-700 hover:border-ember-300'
+                              : 'border-ink-line bg-white text-ink-soft hover:border-ember-300 hover:text-ink'
                     "
                     :aria-current="activeId === category.id ? 'true' : undefined"
                     @click="emit('navigate', category)"
                 >
+                    <Icon
+                        v-if="category.virtual"
+                        name="flame"
+                        class="h-3.5 w-3.5"
+                    />
                     {{ translate(category.name, locale) }}
                 </button>
             </nav>

@@ -19,7 +19,7 @@ const styles = {
         class: 'bg-amber-400/95 text-ink',
     },
     popular: {
-        icon: 'trending-up',
+        icon: 'flame',
         class: 'bg-ember-600/95 text-white',
     },
     new: {

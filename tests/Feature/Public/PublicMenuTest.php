@@ -320,4 +320,168 @@ class PublicMenuTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Restaurant/Dashboard'));
     }
+
+    public function test_most_popular_virtual_category_appears_first(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $category = MenuCategory::factory()->for($restaurant)->create();
+        MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+            'is_popular' => true,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Public/Menu')
+                ->where('categories.0.id', 'most-popular')
+                ->where('categories.0.slug', 'most-popular')
+                ->where('categories.0.virtual', true)
+                ->where('categories.0.name.ar', 'الأكثر طلباً')
+                ->where('categories.0.name.en', 'Most Popular')
+                ->where('categories.1.id', $category->id));
+    }
+
+    public function test_most_popular_collects_popular_items_from_multiple_categories(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $first = MenuCategory::factory()->for($restaurant)->create();
+        $second = MenuCategory::factory()->for($restaurant)->create();
+        $a = MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $first->id,
+            'is_popular' => true,
+        ]);
+        $b = MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $second->id,
+            'is_popular' => true,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('categories.0.items', 2)
+                ->where('categories.0.items', fn ($items) => collect($items)
+                    ->pluck('id')
+                    ->sort()
+                    ->values()
+                    ->all() === collect([$a->id, $b->id])->sort()->values()->all()));
+    }
+
+    public function test_most_popular_excludes_non_popular_products(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $category = MenuCategory::factory()->for($restaurant)->create();
+        $popular = MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+            'is_popular' => true,
+        ]);
+        MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+            'is_popular' => false,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('categories.0.items', 1)
+                ->where('categories.0.items.0.id', $popular->id));
+    }
+
+    public function test_most_popular_excludes_unavailable_products(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $category = MenuCategory::factory()->for($restaurant)->create();
+        MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+            'is_popular' => true,
+            'is_available' => false,
+        ]);
+        MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('categories.0.id', $category->id)
+                ->missing('categories.0.virtual'));
+    }
+
+    public function test_most_popular_excludes_items_from_inactive_categories(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $inactive = MenuCategory::factory()->for($restaurant)->inactive()->create();
+        MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $inactive->id,
+            'is_popular' => true,
+        ]);
+        $active = MenuCategory::factory()->for($restaurant)->create();
+        MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $active->id,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('categories.0.id', $active->id)
+                ->missing('categories.0.virtual'));
+    }
+
+    public function test_most_popular_never_includes_cross_tenant_products(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $category = MenuCategory::factory()->for($restaurant)->create();
+        $mine = MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+            'is_popular' => true,
+        ]);
+
+        $other = Restaurant::factory()->create();
+        $otherCategory = MenuCategory::factory()->for($other)->create();
+        MenuItem::factory()->for($other)->create([
+            'menu_category_id' => $otherCategory->id,
+            'is_popular' => true,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('categories.0.items', 1)
+                ->where('categories.0.items.0.id', $mine->id));
+    }
+
+    public function test_most_popular_section_is_hidden_when_no_popular_products(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $category = MenuCategory::factory()->for($restaurant)->create();
+        MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+            'is_popular' => false,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('categories', 1)
+                ->where('categories.0.id', $category->id)
+                ->missing('categories.0.virtual'));
+    }
+
+    public function test_popular_products_remain_in_their_original_categories(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $category = MenuCategory::factory()->for($restaurant)->create();
+        $item = MenuItem::factory()->for($restaurant)->create([
+            'menu_category_id' => $category->id,
+            'is_popular' => true,
+        ]);
+
+        $this->get('/m/'.$restaurant->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('categories.0.id', 'most-popular')
+                ->where('categories.0.items.0.id', $item->id)
+                ->where('categories.1.id', $category->id)
+                ->where('categories.1.items.0.id', $item->id));
+    }
 }
