@@ -8,6 +8,7 @@ import Icon from '@/Components/UI/Icon.vue';
 import PageHeader from '@/Components/UI/PageHeader.vue';
 import StatCard from '@/Components/UI/StatCard.vue';
 import RestaurantLayout from '@/Layouts/RestaurantLayout.vue';
+import { translate } from '@/Support/i18n';
 
 const props = defineProps({
     restaurant: {
@@ -160,7 +161,7 @@ const formatPrice = (price) => {
                                 <img
                                     v-if="item.image"
                                     :src="item.image"
-                                    :alt="item.name"
+                                    :alt="translate(item.name)"
                                     class="h-full w-full object-cover"
                                 />
                                 <Icon v-else name="image" class="h-5 w-5" />
@@ -168,7 +169,7 @@ const formatPrice = (price) => {
 
                             <div class="min-w-0 flex-1">
                                 <p class="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                                    {{ item.name }}
+                                    {{ translate(item.name) }}
                                 </p>
                                 <p class="text-xs text-slate-400">
                                     {{ item.created_at }}

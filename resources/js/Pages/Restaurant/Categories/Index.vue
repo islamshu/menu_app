@@ -19,6 +19,7 @@ import Toggle from '@/Components/UI/Toggle.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import RestaurantLayout from '@/Layouts/RestaurantLayout.vue';
+import { translate } from '@/Support/i18n';
 
 const props = defineProps({
     categories: {
@@ -250,17 +251,17 @@ const persistOrder = () => {
                                         <img
                                             v-if="category.image"
                                             :src="category.image"
-                                            :alt="category.name"
+                                            :alt="translate(category.name)"
                                             class="h-full w-full object-cover"
                                         />
                                         <Icon v-else name="folder" class="h-4 w-4" />
                                     </span>
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                                            {{ category.name }}
+                                            {{ translate(category.name) }}
                                         </p>
                                         <p class="truncate text-xs text-slate-400">
-                                            {{ category.description || '—' }}
+                                            {{ translate(category.description) || '—' }}
                                         </p>
                                     </div>
                                 </div>
@@ -400,7 +401,7 @@ const persistOrder = () => {
         <ConfirmDialog
             :show="Boolean(deleting)"
             title="حذف القسم"
-            :message="deleting ? 'هل أنت متأكد من حذف قسم «' + deleting.name + '»؟ ستبقى الأصناف التابعة له بدون قسم.' : ''"
+            :message="deleting ? 'هل أنت متأكد من حذف قسم «' + translate(deleting.name) + '»؟ ستبقى الأصناف التابعة له بدون قسم.' : ''"
             confirm-label="حذف"
             @confirm="confirmDelete"
             @close="deleting = null"

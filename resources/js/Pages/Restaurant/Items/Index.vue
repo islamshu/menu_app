@@ -20,6 +20,7 @@ import Toggle from '@/Components/UI/Toggle.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import RestaurantLayout from '@/Layouts/RestaurantLayout.vue';
+import { translate } from '@/Support/i18n';
 
 const props = defineProps({
     items: {
@@ -237,7 +238,7 @@ const formatPrice = (price) => {
                     v-model="selectedCategory"
                     :options="[
                         { value: '', label: 'كل الأقسام' },
-                        ...categories.map((c) => ({ value: c.id, label: c.name })),
+                        ...categories.map((c) => ({ value: c.id, label: translate(c.name) })),
                     ]"
                 />
                 <Select
@@ -328,24 +329,24 @@ const formatPrice = (price) => {
                                         <img
                                             v-if="item.image"
                                             :src="item.image"
-                                            :alt="item.name"
+                                            :alt="translate(item.name)"
                                             class="h-full w-full object-cover"
                                         />
                                         <Icon v-else name="image" class="h-4 w-4" />
                                     </span>
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                                            {{ item.name }}
+                                            {{ translate(item.name) }}
                                         </p>
                                         <p class="truncate text-xs text-slate-400">
-                                            {{ item.description || '—' }}
+                                            {{ translate(item.description) || '—' }}
                                         </p>
                                     </div>
                                 </div>
                             </td>
                             <td class="hidden px-4 py-3 md:table-cell">
                                 <Badge v-if="item.category_name" variant="neutral">
-                                    {{ item.category_name }}
+                                    {{ translate(item.category_name) }}
                                 </Badge>
                                 <span v-else class="text-xs text-slate-400">بدون قسم</span>
                             </td>
@@ -468,7 +469,7 @@ const formatPrice = (price) => {
                             v-model="form.menu_category_id"
                             :options="[
                                 { value: '', label: 'بدون قسم' },
-                                ...categories.map((c) => ({ value: c.id, label: c.name })),
+                                ...categories.map((c) => ({ value: c.id, label: translate(c.name) })),
                             ]"
                             class="mt-2 w-full"
                         />
@@ -550,7 +551,7 @@ const formatPrice = (price) => {
         <ConfirmDialog
             :show="Boolean(deleting)"
             title="حذف الصنف"
-            :message="deleting ? 'هل أنت متأكد من حذف صنف «' + deleting.name + '»؟' : ''"
+            :message="deleting ? 'هل أنت متأكد من حذف صنف «' + translate(deleting.name) + '»؟' : ''"
             confirm-label="حذف"
             @confirm="confirmDelete"
             @close="deleting = null"
