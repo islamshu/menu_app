@@ -1,0 +1,68 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class UserController extends Controller
+{
+    /**
+     * Paginated list of platform users.
+     */
+    public function index(Request $request): Response
+    {
+        $search = trim((string) $request->query('search', ''));
+        $role = (string) $request->query('role', '');
+
+        $users = User::query()
+            ->withCount('restaurants')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($role === 'super_admin', fn ($query) => $query->where('is_super_admin', true))
+            ->when($role === 'member', fn ($query) => $query->where('is_super_admin', false))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString()
+            ->through(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_super_admin' => $user->isSuperAdmin(),
+                'restaurants_count' => $user->restaurants_count,
+                'created_at' => $user->created_at?->toDateString(),
+            ]);
+
+        return Inertia::render('Admin/Users/Index', [
+            'users' => $users,
+            'filters' => [
+                'search' => $search,
+                'role' => $role,
+            ],
+            'currentUserId' => $request->user()->id,
+        ]);
+    }
+
+    /**
+     * Grant or revoke platform super admin access.
+     */
+    public function toggleSuperAdmin(Request $request, User $user): RedirectResponse
+    {
+        if ($user->is($request->user())) {
+            return back()->with('error', 'لا يمكنك تعديل صلاحيات حسابك.');
+        }
+
+        $user->is_super_admin = ! $user->isSuperAdmin();
+        $user->save();
+
+        return back()->with('success', 'تم تحديث صلاحيات المستخدم.');
+    }
+}

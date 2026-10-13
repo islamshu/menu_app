@@ -87,6 +87,8 @@ const classes = computed(() => [
             />
         </svg>
 
+        <slot name="icon" />
+
         <slot />
     </button>
 </template>
