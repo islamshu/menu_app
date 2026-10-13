@@ -1,5 +1,5 @@
 <script setup>
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import AppLogo from '@/Components/Shared/AppLogo.vue';
 import { Link } from '@inertiajs/vue3';
 </script>
 
@@ -9,7 +9,7 @@ import { Link } from '@inertiajs/vue3';
     >
         <div>
             <Link href="/">
-                <ApplicationLogo class="h-20 w-20 fill-current text-gray-500" />
+                <AppLogo class="h-16 w-16 text-gray-500" />
             </Link>
         </div>
 
