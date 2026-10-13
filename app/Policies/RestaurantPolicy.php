@@ -41,6 +41,14 @@ class RestaurantPolicy
     }
 
     /**
+     * Owners and managers may manage menu content (categories and items).
+     */
+    public function manageMenu(User $user, Restaurant $restaurant): bool
+    {
+        return in_array($user->roleIn($restaurant), RestaurantRole::adminRoles(), true);
+    }
+
+    /**
      * Only owners may delete a restaurant.
      */
     public function delete(User $user, Restaurant $restaurant): bool

@@ -44,6 +44,22 @@ class HandleInertiaRequests extends Middleware
                 'slug' => $activeRestaurant->slug,
                 'role' => $request->user()?->roleIn($activeRestaurant)?->value,
             ] : null,
+            'myRestaurants' => fn () => $request->user()
+                ? $request->user()
+                    ->restaurants()
+                    ->orderBy('restaurants.name')
+                    ->get(['restaurants.id', 'name', 'slug'])
+                    ->map(fn ($restaurant) => [
+                        'id' => $restaurant->id,
+                        'name' => $restaurant->name,
+                        'slug' => $restaurant->slug,
+                        'role' => $restaurant->pivot->role,
+                    ])
+                    ->values()
+                : [],
+            'locales' => fn () => collect(config('locales.supported'))
+                ->map(fn ($locale, $code) => ['code' => $code, 'label' => $locale['label']])
+                ->values(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

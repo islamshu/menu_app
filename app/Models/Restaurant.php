@@ -55,6 +55,22 @@ class Restaurant extends Model
     }
 
     /**
+     * @return HasMany<MenuCategory, $this>
+     */
+    public function menuCategories(): HasMany
+    {
+        return $this->hasMany(MenuCategory::class);
+    }
+
+    /**
+     * @return HasMany<MenuItem, $this>
+     */
+    public function menuItems(): HasMany
+    {
+        return $this->hasMany(MenuItem::class);
+    }
+
+    /**
      * @return HasMany<Subscription, $this>
      */
     public function subscriptions(): HasMany
