@@ -241,7 +241,8 @@ watch(locale, () => nextTick(setupObserver));
         :dir="dir"
         :lang="locale"
         :style="tokens"
-        class="min-h-screen bg-[var(--brand-bg)] font-brand-body text-[var(--brand-text)]"
+        class="bg-[var(--brand-bg)] font-brand-body text-[var(--brand-text)]"
+        :class="preview ? 'min-h-full' : 'min-h-screen'"
     >
         <Head>
             <template v-if="fontsUrl">

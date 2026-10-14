@@ -123,6 +123,23 @@ export function resolveRadius(options, key) {
 }
 
 /**
+ * The `--brand-radius` token is only applied to large containers (cards,
+ * sections, cover images), never to small pills (those hard-code
+ * `rounded-full`). A capsule value (9999px) therefore turns a whole card into
+ * an ellipse and clips its content, so the radius is capped to a value that
+ * still reads as "very round" on a card without distorting its shape.
+ */
+const RADIUS_MAX = '2rem';
+
+export function clampRadius(value, max = RADIUS_MAX) {
+    if (!value) {
+        return '0px';
+    }
+
+    return `min(${value}, ${max})`;
+}
+
+/**
  * Build a single bunny.net request for the fonts actually in use.
  */
 export function googleFontsUrl(config, keys) {
@@ -156,7 +173,9 @@ export function buildTokens(settings, options) {
         '--brand-muted': mutedFor(text, background),
         '--brand-on-primary': bestTextColor(primary),
         '--brand-on-bg': bestTextColor(background),
-        '--brand-radius': resolveRadius(options, settings?.border_radius),
+        '--brand-radius': clampRadius(
+            resolveRadius(options, settings?.border_radius),
+        ),
         '--brand-font-heading': resolveFontStack(options, settings?.heading_font),
         '--brand-font-body': resolveFontStack(options, settings?.body_font),
     };

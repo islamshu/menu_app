@@ -535,25 +535,29 @@ const discard = () => {
                     </div>
                 </Card>
 
-                <Card title="المعاينة الحيّة">
-                    <p class="mb-4 text-xs text-slate-500 dark:text-slate-400">
-                        معاينة مباشرة لشكل القائمة الرقمية كما ستظهر للزوار (بيانات
-                        القائمة الفعلية، دون نشر التغييرات).
-                    </p>
-
-                    <div
-                        class="h-[70vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800"
-                    >
-                        <MenuExperience
-                            :restaurant="previewRestaurant"
-                            :categories="previewMenu.categories"
-                            :featured="previewMenu.featured"
-                            :branding="previewBranding"
-                            preview
-                        />
-                    </div>
-                </Card>
             </div>
+
+            <Card
+                class="xl:col-span-2"
+                title="المعاينة الحيّة"
+            >
+                <p class="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                    معاينة مباشرة لشكل القائمة الرقمية كما ستظهر للزوار (بيانات
+                    القائمة الفعلية، دون نشر التغييرات).
+                </p>
+
+                <div
+                    class="h-[70vh] transform-gpu overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white dark:border-slate-800"
+                >
+                    <MenuExperience
+                        :restaurant="previewRestaurant"
+                        :categories="previewMenu.categories"
+                        :featured="previewMenu.featured"
+                        :branding="previewBranding"
+                        preview
+                    />
+                </div>
+            </Card>
         </div>
 
         <ConfirmDialog
