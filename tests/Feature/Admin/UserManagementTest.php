@@ -226,4 +226,57 @@ class UserManagementTest extends TestCase
 
         $this->assertSame('info@restaurant.com', $restaurant->fresh()->email);
     }
+
+    public function test_super_admin_can_delete_a_member(): void
+    {
+        $admin = $this->admin();
+        $member = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $member))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('users', ['id' => $member->id]);
+    }
+
+    public function test_super_admin_cannot_delete_a_restaurant_owner(): void
+    {
+        $admin = $this->admin();
+        $owner = User::factory()->create();
+        $restaurant = Restaurant::factory()->create();
+        $restaurant->users()->attach($owner, ['role' => RestaurantRole::Owner->value]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $owner))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('users', ['id' => $owner->id]);
+    }
+
+    public function test_super_admin_cannot_delete_their_own_account(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $admin))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('users', ['id' => $admin->id]);
+    }
+
+    public function test_deleting_a_member_keeps_restaurants_they_only_belong_to(): void
+    {
+        $admin = $this->admin();
+        $staff = User::factory()->create();
+        $restaurant = Restaurant::factory()->create();
+        $restaurant->users()->attach($staff, ['role' => RestaurantRole::Staff->value]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $staff))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('users', ['id' => $staff->id]);
+        $this->assertDatabaseMissing('restaurant_user', ['user_id' => $staff->id]);
+        $this->assertDatabaseHas('restaurants', ['id' => $restaurant->id]);
+    }
 }

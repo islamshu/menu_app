@@ -4,6 +4,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import Badge from '@/Components/UI/Badge.vue';
 import Button from '@/Components/UI/Button.vue';
 import Card from '@/Components/UI/Card.vue';
+import ConfirmDialog from '@/Components/UI/ConfirmDialog.vue';
 import Dialog from '@/Components/UI/Dialog.vue';
 import EmptyState from '@/Components/UI/EmptyState.vue';
 import Icon from '@/Components/UI/Icon.vue';
@@ -106,6 +107,23 @@ const save = () => {
         onSuccess: () => {
             showCreate.value = false;
             createForm.reset();
+        },
+    });
+};
+
+const deleting = ref(null);
+const deleteForm = useForm({});
+
+const confirmDelete = () => {
+    if (!deleting.value) return;
+
+    deleteForm.delete(route('admin.users.destroy', deleting.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            deleting.value = null;
+        },
+        onError: () => {
+            deleting.value = null;
         },
     });
 };
@@ -227,6 +245,19 @@ const save = () => {
                                         </template>
                                         {{ user.is_super_admin ? 'إزالة الإشراف' : 'ترقية لمشرف' }}
                                     </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                                        :disabled="user.id === currentUserId || user.owned_restaurants_count > 0"
+                                        :title="user.owned_restaurants_count > 0 ? 'لا يمكن حذف مستخدم يملك مطاعم' : undefined"
+                                        @click="deleting = user"
+                                    >
+                                        <template #icon>
+                                            <Icon name="trash" class="h-3.5 w-3.5" />
+                                        </template>
+                                        حذف
+                                    </Button>
                                 </div>
                             </td>
                         </tr>
@@ -297,5 +328,15 @@ const save = () => {
                 </div>
             </form>
         </Dialog>
+
+        <ConfirmDialog
+            :show="Boolean(deleting)"
+            title="حذف المستخدم"
+            :message="deleting ? 'سيتم حذف حساب «' + deleting.name + '» نهائياً. هل أنت متأكد؟' : ''"
+            confirm-label="حذف نهائي"
+            :processing="deleteForm.processing"
+            @confirm="confirmDelete"
+            @close="deleting = null"
+        />
     </AdminLayout>
 </template>

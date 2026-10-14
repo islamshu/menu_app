@@ -26,6 +26,9 @@ class UserController extends Controller
 
         $users = User::query()
             ->withCount('restaurants')
+            ->withCount([
+                'restaurants as owned_restaurants_count' => fn ($query) => $query->wherePivot('role', RestaurantRole::Owner->value),
+            ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('name', 'like', "%{$search}%")
@@ -43,6 +46,7 @@ class UserController extends Controller
                 'email' => $user->email,
                 'is_super_admin' => $user->isSuperAdmin(),
                 'restaurants_count' => $user->restaurants_count,
+                'owned_restaurants_count' => $user->owned_restaurants_count,
                 'created_at' => $user->created_at?->toDateString(),
             ]);
 
@@ -140,5 +144,27 @@ class UserController extends Controller
         $user->save();
 
         return back()->with('success', 'تم تحديث صلاحيات المستخدم.');
+    }
+
+    /**
+     * Remove a platform user.
+     */
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($user->is($request->user())) {
+            return back()->with('error', 'لا يمكنك حذف حسابك الخاص.');
+        }
+
+        $ownsRestaurants = $user->restaurants()
+            ->wherePivot('role', RestaurantRole::Owner->value)
+            ->exists();
+
+        if ($ownsRestaurants) {
+            return back()->with('error', 'لا يمكن حذف مستخدم يملك مطاعم. انقل الملكية أو احذف المطاعم أولاً.');
+        }
+
+        $user->delete();
+
+        return back()->with('success', 'تم حذف المستخدم.');
     }
 }
