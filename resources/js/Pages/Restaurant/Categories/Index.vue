@@ -20,6 +20,7 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import RestaurantLayout from '@/Layouts/RestaurantLayout.vue';
 import { translate } from '@/Support/i18n';
+import { submitMultipart } from '@/Support/forms';
 
 const props = defineProps({
     categories: {
@@ -98,7 +99,6 @@ const onImage = (file) => {
 
 const submit = () => {
     const options = {
-        forceFormData: true,
         onSuccess: () => {
             showForm.value = false;
             editing.value = null;
@@ -106,9 +106,14 @@ const submit = () => {
     };
 
     if (editing.value) {
-        form.put(route('categories.update', editing.value.id), options);
+        submitMultipart(
+            form,
+            'put',
+            route('categories.update', editing.value.id),
+            options,
+        );
     } else {
-        form.post(route('categories.store'), options);
+        submitMultipart(form, 'post', route('categories.store'), options);
     }
 };
 

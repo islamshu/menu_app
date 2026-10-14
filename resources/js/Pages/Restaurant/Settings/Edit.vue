@@ -14,6 +14,7 @@ import Textarea from '@/Components/UI/Textarea.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import RestaurantLayout from '@/Layouts/RestaurantLayout.vue';
+import { submitMultipart } from '@/Support/forms';
 
 const props = defineProps({
     restaurant: {
@@ -74,7 +75,7 @@ const onCover = (file) => {
 };
 
 const submit = () => {
-    form.put(route('settings.update'), { forceFormData: true });
+    submitMultipart(form, 'put', route('settings.update'));
 };
 
 const sections = [
