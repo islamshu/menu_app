@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\RestaurantRole;
 use App\Http\Controllers\Controller;
+use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -75,6 +78,53 @@ class UserController extends Controller
         $user->save();
 
         return back()->with('success', 'تم إنشاء المستخدم.');
+    }
+
+    /**
+     * Update a platform user from the super admin area.
+     */
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'password' => ['nullable', 'string', 'confirmed', Rules\Password::defaults()],
+            'is_super_admin' => ['boolean'],
+        ]);
+
+        $oldEmail = $user->email;
+
+        $user->name = $data['name'];
+        $user->email = $data['email'];
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        if (! empty($data['password'])) {
+            $user->password = Hash::make($data['password']);
+        }
+
+        // Never let an admin revoke their own platform access.
+        $user->is_super_admin = $user->is($request->user())
+            ? true
+            : $request->boolean('is_super_admin');
+
+        $user->save();
+
+        // Keep derived restaurant contact emails in sync with the owner.
+        if ($oldEmail !== $user->email) {
+            $user->restaurants()
+                ->wherePivot('role', RestaurantRole::Owner->value)
+                ->where('email', $oldEmail)
+                ->get()
+                ->each(function (Restaurant $restaurant) use ($user) {
+                    $restaurant->email = $user->email;
+                    $restaurant->save();
+                });
+        }
+
+        return back()->with('success', 'تم تحديث المستخدم.');
     }
 
     /**

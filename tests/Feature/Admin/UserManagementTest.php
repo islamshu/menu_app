@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Enums\RestaurantRole;
+use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -111,5 +113,117 @@ class UserManagementTest extends TestCase
             ->assertSessionHasErrors(['name', 'email', 'password']);
 
         $this->assertDatabaseCount('users', 1);
+    }
+
+    public function test_super_admin_can_update_a_user(): void
+    {
+        $admin = $this->admin();
+        $user = User::factory()->create(['name' => 'Old Name', 'email' => 'old@example.com']);
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $user), [
+                'name' => 'New Name',
+                'email' => 'new@example.com',
+                'password' => 'brand-new-pass',
+                'password_confirmation' => 'brand-new-pass',
+                'is_super_admin' => false,
+            ])
+            ->assertSessionHas('success');
+
+        $user->refresh();
+
+        $this->assertSame('New Name', $user->name);
+        $this->assertSame('new@example.com', $user->email);
+        $this->assertTrue(Hash::check('brand-new-pass', $user->password));
+        $this->assertNull($user->email_verified_at);
+    }
+
+    public function test_user_update_keeps_the_password_when_left_blank(): void
+    {
+        $admin = $this->admin();
+        $user = User::factory()->create(['password' => bcrypt('original-pass')]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $user), [
+                'name' => $user->name,
+                'email' => $user->email,
+                'password' => '',
+                'is_super_admin' => false,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertTrue(Hash::check('original-pass', $user->fresh()->password));
+    }
+
+    public function test_user_update_validates_unique_email(): void
+    {
+        $admin = $this->admin();
+        User::factory()->create(['email' => 'taken@example.com']);
+        $user = User::factory()->create(['email' => 'mine@example.com']);
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $user), [
+                'name' => $user->name,
+                'email' => 'taken@example.com',
+                'is_super_admin' => false,
+            ])
+            ->assertSessionHasErrors('email');
+
+        $this->assertSame('mine@example.com', $user->fresh()->email);
+    }
+
+    public function test_super_admin_cannot_demote_their_own_account_via_update(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $admin), [
+                'name' => 'Renamed Admin',
+                'email' => $admin->email,
+                'is_super_admin' => false,
+            ])
+            ->assertSessionHas('success');
+
+        $admin->refresh();
+
+        $this->assertSame('Renamed Admin', $admin->name);
+        $this->assertTrue($admin->isSuperAdmin());
+    }
+
+    public function test_changing_owner_email_updates_derived_restaurant_email(): void
+    {
+        $admin = $this->admin();
+        $owner = User::factory()->create(['email' => 'owner@example.com']);
+        $restaurant = Restaurant::factory()->create(['email' => 'owner@example.com']);
+        $restaurant->users()->attach($owner, ['role' => RestaurantRole::Owner->value]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $owner), [
+                'name' => $owner->name,
+                'email' => 'new-owner@example.com',
+                'is_super_admin' => false,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame('new-owner@example.com', $owner->fresh()->email);
+        $this->assertSame('new-owner@example.com', $restaurant->fresh()->email);
+    }
+
+    public function test_changing_owner_email_keeps_a_custom_restaurant_email(): void
+    {
+        $admin = $this->admin();
+        $owner = User::factory()->create(['email' => 'owner@example.com']);
+        $restaurant = Restaurant::factory()->create(['email' => 'info@restaurant.com']);
+        $restaurant->users()->attach($owner, ['role' => RestaurantRole::Owner->value]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $owner), [
+                'name' => $owner->name,
+                'email' => 'new-owner@example.com',
+                'is_super_admin' => false,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame('info@restaurant.com', $restaurant->fresh()->email);
     }
 }

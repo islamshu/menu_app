@@ -60,6 +60,7 @@ const toggleSuperAdmin = (user) => {
 };
 
 const showCreate = ref(false);
+const editing = ref(null);
 const createForm = useForm({
     name: '',
     email: '',
@@ -69,12 +70,37 @@ const createForm = useForm({
 });
 
 const openCreate = () => {
+    editing.value = null;
     createForm.reset();
     createForm.clearErrors();
     showCreate.value = true;
 };
 
-const submitCreate = () => {
+const openEdit = (user) => {
+    editing.value = user;
+    createForm.clearErrors();
+    createForm.name = user.name;
+    createForm.email = user.email;
+    createForm.password = '';
+    createForm.password_confirmation = '';
+    createForm.is_super_admin = user.is_super_admin;
+    showCreate.value = true;
+};
+
+const save = () => {
+    if (editing.value) {
+        createForm.put(route('admin.users.update', editing.value.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                showCreate.value = false;
+                editing.value = null;
+                createForm.reset();
+            },
+        });
+
+        return;
+    }
+
     createForm.post(route('admin.users.store'), {
         preserveScroll: true,
         onSuccess: () => {
@@ -179,17 +205,29 @@ const submitCreate = () => {
                                 </Badge>
                             </td>
                             <td class="px-4 py-3">
-                                <Button
-                                    :variant="user.is_super_admin ? 'outline' : 'secondary'"
-                                    size="sm"
-                                    :disabled="user.id === currentUserId"
-                                    @click="toggleSuperAdmin(user)"
-                                >
-                                    <template #icon>
-                                        <Icon name="star" class="h-3.5 w-3.5" />
-                                    </template>
-                                    {{ user.is_super_admin ? 'إزالة الإشراف' : 'ترقية لمشرف' }}
-                                </Button>
+                                <div class="flex items-center justify-end gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        @click="openEdit(user)"
+                                    >
+                                        <template #icon>
+                                            <Icon name="edit" class="h-3.5 w-3.5" />
+                                        </template>
+                                        تعديل
+                                    </Button>
+                                    <Button
+                                        :variant="user.is_super_admin ? 'outline' : 'secondary'"
+                                        size="sm"
+                                        :disabled="user.id === currentUserId"
+                                        @click="toggleSuperAdmin(user)"
+                                    >
+                                        <template #icon>
+                                            <Icon name="star" class="h-3.5 w-3.5" />
+                                        </template>
+                                        {{ user.is_super_admin ? 'إزالة الإشراف' : 'ترقية لمشرف' }}
+                                    </Button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -205,10 +243,10 @@ const submitCreate = () => {
 
         <Dialog
             :show="showCreate"
-            title="مستخدم جديد"
+            :title="editing ? 'تعديل المستخدم' : 'مستخدم جديد'"
             @close="showCreate = false"
         >
-            <form class="space-y-5" @submit.prevent="submitCreate">
+            <form class="space-y-5" @submit.prevent="save">
                 <div>
                     <InputLabel value="الاسم" />
                     <TextInput v-model="createForm.name" type="text" class="mt-2 w-full" />
@@ -223,12 +261,13 @@ const submitCreate = () => {
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <InputLabel value="كلمة المرور" />
+                        <InputLabel :value="editing ? 'كلمة مرور جديدة (اختياري)' : 'كلمة المرور'" />
                         <TextInput v-model="createForm.password" type="password" dir="ltr" class="mt-2 w-full" />
                         <InputError class="mt-1" :message="createForm.errors.password" />
+                        <p v-if="editing" class="mt-1 text-xs text-slate-400">اتركها فارغة للإبقاء على كلمة المرور الحالية.</p>
                     </div>
                     <div>
-                        <InputLabel value="تأكيد كلمة المرور" />
+                        <InputLabel :value="editing ? 'تأكيد كلمة المرور الجديدة' : 'تأكيد كلمة المرور'" />
                         <TextInput v-model="createForm.password_confirmation" type="password" dir="ltr" class="mt-2 w-full" />
                     </div>
                 </div>
@@ -236,9 +275,15 @@ const submitCreate = () => {
                 <div class="flex items-center justify-between rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
                     <div>
                         <p class="text-sm font-medium text-slate-900 dark:text-slate-100">مشرف المنصة</p>
-                        <p class="text-xs text-slate-400">يمنح صلاحية الوصول الكامل للوحة الإدارة.</p>
+                        <p v-if="editing && editing.id === currentUserId" class="text-xs text-amber-600">
+                            لا يمكنك إزالة صلاحياتك الخاصة.
+                        </p>
+                        <p v-else class="text-xs text-slate-400">يمنح صلاحية الوصول الكامل للوحة الإدارة.</p>
                     </div>
-                    <Toggle v-model="createForm.is_super_admin" />
+                    <Toggle
+                        v-model="createForm.is_super_admin"
+                        :disabled="editing && editing.id === currentUserId"
+                    />
                 </div>
 
                 <div class="flex items-center justify-end gap-3 pt-2">
@@ -247,7 +292,7 @@ const submitCreate = () => {
                         <template #icon>
                             <Icon name="check" class="h-4 w-4" />
                         </template>
-                        إنشاء
+                        {{ editing ? 'حفظ' : 'إنشاء' }}
                     </Button>
                 </div>
             </form>
