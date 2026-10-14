@@ -117,7 +117,7 @@ const deleteForm = useForm({});
 const { error } = useToasts();
 
 const requestDelete = (user) => {
-    if (user.id === currentUserId) {
+    if (user.id === props.currentUserId) {
         error('لا يمكنك حذف حسابك الخاص.');
         return;
     }
