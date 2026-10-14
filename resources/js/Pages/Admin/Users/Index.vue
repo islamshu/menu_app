@@ -17,6 +17,7 @@ import Select from '@/Components/UI/Select.vue';
 import TextInput from '@/Components/UI/TextInput.vue';
 import Toggle from '@/Components/UI/Toggle.vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useToasts } from '@/Composables/useToasts';
 
 const props = defineProps({
     users: {
@@ -113,6 +114,21 @@ const save = () => {
 
 const deleting = ref(null);
 const deleteForm = useForm({});
+const { error } = useToasts();
+
+const requestDelete = (user) => {
+    if (user.id === currentUserId) {
+        error('لا يمكنك حذف حسابك الخاص.');
+        return;
+    }
+
+    if (user.owned_restaurants_count > 0) {
+        error('لا يمكن حذف هذا المستخدم لأنه يملك مطاعم. انقل الملكية أو احذف المطاعم أولاً.');
+        return;
+    }
+
+    deleting.value = user;
+};
 
 const confirmDelete = () => {
     if (!deleting.value) return;
@@ -246,12 +262,9 @@ const confirmDelete = () => {
                                         {{ user.is_super_admin ? 'إزالة الإشراف' : 'ترقية لمشرف' }}
                                     </Button>
                                     <Button
-                                        variant="ghost"
+                                        variant="danger"
                                         size="sm"
-                                        class="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-                                        :disabled="user.id === currentUserId || user.owned_restaurants_count > 0"
-                                        :title="user.owned_restaurants_count > 0 ? 'لا يمكن حذف مستخدم يملك مطاعم' : undefined"
-                                        @click="deleting = user"
+                                        @click="requestDelete(user)"
                                     >
                                         <template #icon>
                                             <Icon name="trash" class="h-3.5 w-3.5" />
