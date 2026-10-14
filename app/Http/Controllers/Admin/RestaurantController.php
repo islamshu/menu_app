@@ -196,11 +196,17 @@ class RestaurantController extends Controller
             'plan_id' => ['nullable', 'integer', 'exists:plans,id'],
         ]);
 
+        $email = $data['email'] ?? null;
+
+        if (empty($email) && ! empty($data['owner_id'])) {
+            $email = User::whereKey($data['owner_id'])->value('email');
+        }
+
         $restaurant = Restaurant::create([
             'name' => $data['name'],
             'slug' => $this->uniqueSlug($data['slug'] ?? $data['name']),
             'description' => $data['description'] ?? null,
-            'email' => $data['email'] ?? null,
+            'email' => $email,
             'phone' => $data['phone'] ?? null,
             'address' => $data['address'] ?? null,
             'currency' => strtoupper($data['currency']),

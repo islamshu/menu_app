@@ -200,4 +200,47 @@ class RestaurantManagementTest extends TestCase
 
         $this->assertDatabaseCount('restaurants', 0);
     }
+
+    public function test_restaurant_email_defaults_to_the_owner_email(): void
+    {
+        $owner = User::factory()->create(['email' => 'owner@example.com']);
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.restaurants.store'), [
+                'name' => 'Owner Mail Place',
+                'currency' => 'ILS',
+                'default_locale' => 'ar',
+                'timezone' => 'UTC',
+                'status' => 'active',
+                'owner_id' => $owner->id,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('restaurants', [
+            'name' => 'Owner Mail Place',
+            'email' => 'owner@example.com',
+        ]);
+    }
+
+    public function test_explicit_restaurant_email_is_kept(): void
+    {
+        $owner = User::factory()->create(['email' => 'owner@example.com']);
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.restaurants.store'), [
+                'name' => 'Custom Mail Place',
+                'email' => 'contact@custom.example',
+                'currency' => 'ILS',
+                'default_locale' => 'ar',
+                'timezone' => 'UTC',
+                'status' => 'active',
+                'owner_id' => $owner->id,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('restaurants', [
+            'name' => 'Custom Mail Place',
+            'email' => 'contact@custom.example',
+        ]);
+    }
 }

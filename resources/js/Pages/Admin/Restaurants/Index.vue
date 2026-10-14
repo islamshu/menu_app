@@ -110,9 +110,25 @@ const createForm = useForm({
     plan_id: '',
 });
 
+let autoFilledEmail = '';
+
+watch(
+    () => createForm.owner_id,
+    (ownerId) => {
+        const email = props.ownerOptions.find((user) => user.id === ownerId)?.email ?? '';
+
+        if (createForm.email === '' || createForm.email === autoFilledEmail) {
+            createForm.email = email;
+        }
+
+        autoFilledEmail = email;
+    },
+);
+
 const openCreate = () => {
     createForm.reset();
     createForm.clearErrors();
+    autoFilledEmail = '';
     showCreate.value = true;
 };
 
@@ -302,7 +318,7 @@ const submitCreate = () => {
                         <InputError class="mt-1" :message="createForm.errors.phone" />
                     </div>
                     <div>
-                        <InputLabel value="البريد الإلكتروني" />
+                        <InputLabel value="البريد الإلكتروني (يُملأ من المالك)" />
                         <TextInput v-model="createForm.email" type="email" dir="ltr" class="mt-2 w-full" />
                         <InputError class="mt-1" :message="createForm.errors.email" />
                     </div>
