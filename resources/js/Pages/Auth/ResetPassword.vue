@@ -1,9 +1,8 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
+import Button from '@/Components/UI/Button.vue';
+import TextInput from '@/Components/UI/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -32,54 +31,73 @@ const submit = () => {
 </script>
 
 <template>
-    <GuestLayout>
-        <Head title="Reset Password" />
+    <GuestLayout
+        title="إعادة تعيين كلمة المرور"
+        subtitle="اختر كلمة مرور جديدة لحسابك"
+    >
+        <Head title="إعادة تعيين كلمة المرور" />
 
-        <form @submit.prevent="submit">
+        <form class="space-y-5" @submit.prevent="submit">
             <div>
-                <InputLabel for="email" value="Email" />
+                <label
+                    for="email"
+                    class="block text-sm font-medium text-slate-700 dark:text-slate-200"
+                >
+                    البريد الإلكتروني
+                </label>
 
                 <TextInput
                     id="email"
-                    type="email"
-                    class="mt-1 block w-full"
                     v-model="form.email"
+                    type="email"
+                    class="mt-1.5"
                     required
-                    autofocus
                     autocomplete="username"
+                    :error="form.errors.email"
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
 
-            <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+            <div>
+                <label
+                    for="password"
+                    class="block text-sm font-medium text-slate-700 dark:text-slate-200"
+                >
+                    كلمة المرور الجديدة
+                </label>
 
                 <TextInput
                     id="password"
-                    type="password"
-                    class="mt-1 block w-full"
                     v-model="form.password"
+                    type="password"
+                    class="mt-1.5"
+                    placeholder="••••••••"
                     required
                     autocomplete="new-password"
+                    :error="form.errors.password"
                 />
 
                 <InputError class="mt-2" :message="form.errors.password" />
             </div>
 
-            <div class="mt-4">
-                <InputLabel
+            <div>
+                <label
                     for="password_confirmation"
-                    value="Confirm Password"
-                />
+                    class="block text-sm font-medium text-slate-700 dark:text-slate-200"
+                >
+                    تأكيد كلمة المرور
+                </label>
 
                 <TextInput
                     id="password_confirmation"
-                    type="password"
-                    class="mt-1 block w-full"
                     v-model="form.password_confirmation"
+                    type="password"
+                    class="mt-1.5"
+                    placeholder="••••••••"
                     required
                     autocomplete="new-password"
+                    :error="form.errors.password_confirmation"
                 />
 
                 <InputError
@@ -88,14 +106,9 @@ const submit = () => {
                 />
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
-                <PrimaryButton
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
-                >
-                    Reset Password
-                </PrimaryButton>
-            </div>
+            <Button type="submit" size="lg" block :loading="form.processing">
+                إعادة تعيين كلمة المرور
+            </Button>
         </form>
     </GuestLayout>
 </template>

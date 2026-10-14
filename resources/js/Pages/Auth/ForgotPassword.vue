@@ -1,10 +1,9 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import Button from '@/Components/UI/Button.vue';
+import TextInput from '@/Components/UI/TextInput.vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 
 defineProps({
     status: {
@@ -22,47 +21,53 @@ const submit = () => {
 </script>
 
 <template>
-    <GuestLayout>
-        <Head title="Forgot Password" />
-
-        <div class="mb-4 text-sm text-gray-600">
-            Forgot your password? No problem. Just let us know your email
-            address and we will email you a password reset link that will allow
-            you to choose a new one.
-        </div>
+    <GuestLayout
+        title="استعادة كلمة المرور"
+        subtitle="سنرسل رابط إعادة التعيين إلى بريدك الإلكتروني"
+    >
+        <Head title="استعادة كلمة المرور" />
 
         <div
             v-if="status"
-            class="mb-4 text-sm font-medium text-green-600"
+            class="mb-5 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
         >
             {{ status }}
         </div>
 
-        <form @submit.prevent="submit">
+        <form class="space-y-5" @submit.prevent="submit">
             <div>
-                <InputLabel for="email" value="Email" />
+                <label
+                    for="email"
+                    class="block text-sm font-medium text-slate-700 dark:text-slate-200"
+                >
+                    البريد الإلكتروني
+                </label>
 
                 <TextInput
                     id="email"
-                    type="email"
-                    class="mt-1 block w-full"
                     v-model="form.email"
+                    type="email"
+                    class="mt-1.5"
+                    placeholder="name@example.com"
                     required
                     autofocus
                     autocomplete="username"
+                    :error="form.errors.email"
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
-                <PrimaryButton
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
-                >
-                    Email Password Reset Link
-                </PrimaryButton>
-            </div>
+            <Button type="submit" size="lg" block :loading="form.processing">
+                إرسال رابط الاستعادة
+            </Button>
+
+            <Link
+                :href="route('login')"
+                class="block text-center text-sm font-medium text-brand-600 transition hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+            >
+                العودة لتسجيل الدخول
+            </Link>
         </form>
     </GuestLayout>
 </template>

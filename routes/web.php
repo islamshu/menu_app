@@ -8,7 +8,6 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('Public/Home', [
         'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
     ]);
 })->name('home');
 

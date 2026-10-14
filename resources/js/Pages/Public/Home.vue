@@ -6,10 +6,6 @@ defineProps({
         type: Boolean,
         default: false,
     },
-    canRegister: {
-        type: Boolean,
-        default: false,
-    },
 });
 </script>
 
@@ -51,14 +47,6 @@ defineProps({
                     class="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-700"
                 >
                     Log in
-                </Link>
-
-                <Link
-                    v-if="canRegister"
-                    :href="route('register')"
-                    class="rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-white"
-                >
-                    Register
                 </Link>
             </template>
         </div>
