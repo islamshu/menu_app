@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Branding\BrandingSettings;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -60,6 +61,7 @@ class HandleInertiaRequests extends Middleware
             'locales' => fn () => collect(config('locales.supported'))
                 ->map(fn ($locale, $code) => ['code' => $code, 'label' => $locale['label']])
                 ->values(),
+            'brandingOptions' => fn () => app(BrandingSettings::class)->options(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

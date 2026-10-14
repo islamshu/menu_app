@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Restaurant\BrandingController;
 use App\Http\Controllers\Restaurant\CategoryController;
 use App\Http\Controllers\Restaurant\DashboardController;
 use App\Http\Controllers\Restaurant\MenuItemController;
@@ -24,3 +25,9 @@ Route::post('items/reorder', [MenuItemController::class, 'reorder'])->name('item
 
 Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
 Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+
+Route::get('branding', [BrandingController::class, 'edit'])->name('branding.edit');
+Route::put('branding', [BrandingController::class, 'update'])->name('branding.update');
+Route::post('branding/publish', [BrandingController::class, 'publish'])->name('branding.publish');
+Route::delete('branding/draft', [BrandingController::class, 'discardDraft'])->name('branding.discard');
+Route::post('branding/palette', [BrandingController::class, 'extractPalette'])->name('branding.palette');

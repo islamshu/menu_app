@@ -88,6 +88,14 @@ class Restaurant extends Model
             ->latestOfMany();
     }
 
+    /**
+     * @return HasOne<RestaurantBranding, $this>
+     */
+    public function branding(): HasOne
+    {
+        return $this->hasOne(RestaurantBranding::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === RestaurantStatus::Active;

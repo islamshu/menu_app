@@ -3,18 +3,21 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\MenuCategory;
-use App\Models\MenuItem;
 use App\Models\Restaurant;
+use App\Services\Branding\BrandingSettings;
 use App\Services\ImageManager;
-use Illuminate\Support\Collection;
+use App\Services\MenuContentPresenter;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PublicMenuController extends Controller
 {
-    public function __construct(private readonly ImageManager $images) {}
+    public function __construct(
+        private readonly ImageManager $images,
+        private readonly MenuContentPresenter $content,
+        private readonly BrandingSettings $branding,
+    ) {}
 
     /**
      * Display the public digital menu for an active restaurant.
@@ -28,45 +31,13 @@ class PublicMenuController extends Controller
         abort_unless($restaurant->isActive(), 404);
 
         $locale = $this->resolveLocale($restaurant);
-
-        $categories = $restaurant->menuCategories()
-            ->where('is_active', true)
-            ->whereHas('items', fn ($query) => $query->where('is_available', true))
-            ->with(['items' => fn ($query) => $query
-                ->where('is_available', true)
-                ->orderBy('sort_order')
-                ->orderBy('id')])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $items = $categories->flatMap(fn (MenuCategory $category) => $category->items);
-
-        $featured = $items
-            ->filter(fn (MenuItem $item) => $item->is_featured)
-            ->take(6)
-            ->values();
-
-        // The "Most Popular" virtual category is derived from the already
-        // loaded, tenant-scoped, active/available set, so it never triggers
-        // extra queries and can not leak other restaurants' or hidden items.
-        $popular = $items
-            ->filter(fn (MenuItem $item) => $item->is_popular)
-            ->values();
-
-        $payload = $categories
-            ->map(fn (MenuCategory $category) => $this->categoryPayload($category));
-
-        if ($popular->isNotEmpty()) {
-            $payload->prepend($this->popularCategoryPayload($popular));
-        }
+        $content = $this->content->present($restaurant);
 
         return Inertia::render('Public/Menu', [
             'restaurant' => $this->restaurantPayload($restaurant, $locale),
-            'categories' => $payload->values(),
-            'featured' => $featured
-                ->map(fn (MenuItem $item) => $this->itemPayload($item))
-                ->values(),
+            'categories' => $content['categories'],
+            'featured' => $content['featured'],
+            'branding' => $this->branding->resolve($restaurant),
             'meta' => $this->meta($restaurant, $locale),
         ]);
     }
@@ -109,71 +80,6 @@ class PublicMenuController extends Controller
                     'dir' => $config['dir'],
                 ])
                 ->values(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function categoryPayload(MenuCategory $category): array
-    {
-        return [
-            'id' => $category->id,
-            'slug' => $category->slug,
-            'name' => $category->translationsFor('name'),
-            'description' => $category->translationsFor('description'),
-            'image' => $this->images->url($category->image),
-            'items' => $category->items
-                ->map(fn (MenuItem $item) => $this->itemPayload($item))
-                ->values(),
-        ];
-    }
-
-    /**
-     * Build the virtual "Most Popular" category that always renders first.
-     *
-     * @param  Collection<int, MenuItem>  $items
-     * @return array<string, mixed>
-     */
-    protected function popularCategoryPayload(Collection $items): array
-    {
-        return [
-            'id' => 'most-popular',
-            'slug' => 'most-popular',
-            'virtual' => true,
-            'name' => [
-                'ar' => 'الأكثر طلباً',
-                'en' => 'Most Popular',
-            ],
-            'description' => [
-                'ar' => 'أطباق مختارة من قائمتنا يكثر طلبها بين ضيوفنا.',
-                'en' => 'A hand-picked selection of our most in-demand dishes.',
-            ],
-            'image' => null,
-            'items' => $items
-                ->map(fn (MenuItem $item) => $this->itemPayload($item))
-                ->values(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function itemPayload(MenuItem $item): array
-    {
-        return [
-            'id' => $item->id,
-            'slug' => $item->slug,
-            'name' => $item->translationsFor('name'),
-            'description' => $item->translationsFor('description'),
-            'image' => $this->images->url($item->image),
-            'price' => $item->price,
-            'compare_at_price' => $item->compare_at_price,
-            'is_available' => (bool) $item->is_available,
-            'is_featured' => (bool) $item->is_featured,
-            'is_popular' => (bool) $item->is_popular,
-            'is_new' => (bool) $item->is_new,
-            'category_id' => $item->menu_category_id,
         ];
     }
 

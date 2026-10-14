@@ -53,6 +53,31 @@
     }
 }
 
+@layer utilities {
+    .font-brand-heading {
+        font-family: var(--brand-font-heading, inherit);
+    }
+
+    .font-brand-body {
+        font-family: var(--brand-font-body, inherit);
+    }
+
+    .brand-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--brand-text, #111) 25%, transparent)
+            transparent;
+    }
+
+    .brand-scroll::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .brand-scroll::-webkit-scrollbar-thumb {
+        border-radius: 9999px;
+        background: color-mix(in srgb, var(--brand-text, #111) 25%, transparent);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
