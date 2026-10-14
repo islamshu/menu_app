@@ -6,6 +6,7 @@ import Button from '@/Components/UI/Button.vue';
 import Card from '@/Components/UI/Card.vue';
 import Icon from '@/Components/UI/Icon.vue';
 import ImageUploader from '@/Components/UI/ImageUploader.vue';
+import MenuQrCode from '@/Components/UI/MenuQrCode.vue';
 import PageHeader from '@/Components/UI/PageHeader.vue';
 import Select from '@/Components/UI/Select.vue';
 import TextInput from '@/Components/UI/TextInput.vue';
@@ -30,6 +31,10 @@ const props = defineProps({
     locales: {
         type: Array,
         required: true,
+    },
+    menu_url: {
+        type: String,
+        default: '',
     },
 });
 
@@ -76,6 +81,7 @@ const sections = [
     { id: 'general', label: 'المعلومات الأساسية', icon: 'store' },
     { id: 'branding', label: 'العلامة التجارية', icon: 'image' },
     { id: 'preferences', label: 'التفضيلات', icon: 'cog' },
+    { id: 'qr', label: 'رمز QR', icon: 'qr-code' },
 ];
 </script>
 
@@ -237,6 +243,10 @@ const sections = [
                             <InputError class="mt-1" :message="form.errors.timezone" />
                         </div>
                     </div>
+                </Card>
+
+                <Card v-show="activeSection === 'qr'" title="رمز QR للقائمة">
+                    <MenuQrCode :url="menu_url" :name="restaurant.name" />
                 </Card>
 
                 <div class="flex items-center justify-end gap-3">

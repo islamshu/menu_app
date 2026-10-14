@@ -2,20 +2,41 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\RestaurantRole;
 use App\Enums\RestaurantStatus;
+use App\Enums\SubscriptionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Restaurant;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Services\ImageManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RestaurantController extends Controller
 {
+    /**
+     * @var array<int, array{code: string, label: string}>
+     */
+    private const CURRENCIES = [
+        ['code' => 'ILS', 'label' => 'شيكل إسرائيلي (₪)'],
+        ['code' => 'USD', 'label' => 'دولار أمريكي ($)'],
+        ['code' => 'EUR', 'label' => 'يورو (€)'],
+        ['code' => 'GBP', 'label' => 'جنيه إسترليني (£)'],
+        ['code' => 'SAR', 'label' => 'ريال سعودي (ر.س)'],
+        ['code' => 'AED', 'label' => 'درهم إماراتي (د.إ)'],
+        ['code' => 'EGP', 'label' => 'جنيه مصري (ج.م)'],
+        ['code' => 'JOD', 'label' => 'دينار أردني (د.أ)'],
+        ['code' => 'KWD', 'label' => 'دينار كويتي (د.ك)'],
+        ['code' => 'QAR', 'label' => 'ريال قطري (ر.ق)'],
+        ['code' => 'TRY', 'label' => 'ليرة تركية (₺)'],
+    ];
+
     public function __construct(private readonly ImageManager $images) {}
 
     /**
@@ -67,11 +88,25 @@ class RestaurantController extends Controller
                 'status' => $status,
             ],
             'statuses' => collect(RestaurantStatus::cases())
-                ->map(fn (RestaurantStatus $status) => [
-                    'value' => $status->value,
-                    'label' => $status->label(),
+                ->map(fn (RestaurantStatus $case) => [
+                    'value' => $case->value,
+                    'label' => $case->label(),
                 ])
                 ->values(),
+            'plans' => Plan::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Plan $plan) => ['id' => $plan->id, 'name' => $plan->name]),
+            'ownerOptions' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+                ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]),
+            'currencies' => self::CURRENCIES,
+            'locales' => collect(config('locales.supported'))
+                ->map(fn ($locale, $code) => ['code' => $code, 'label' => $locale['label']])
+                ->values(),
+            'timezones' => timezone_identifiers_list(),
         ]);
     }
 
@@ -139,6 +174,77 @@ class RestaurantController extends Controller
                 ->get(['id', 'name'])
                 ->map(fn ($plan) => ['id' => $plan->id, 'name' => $plan->name]),
         ]);
+    }
+
+    /**
+     * Create a new tenant from the super admin area.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => ['nullable', 'string', 'max:255', 'alpha_dash', 'unique:restaurants,slug'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'currency' => ['required', 'string', 'size:3'],
+            'default_locale' => ['required', 'string', 'max:5'],
+            'timezone' => ['required', 'string', 'max:255', 'timezone'],
+            'status' => ['required', Rule::enum(RestaurantStatus::class)],
+            'owner_id' => ['nullable', 'integer', 'exists:users,id'],
+            'plan_id' => ['nullable', 'integer', 'exists:plans,id'],
+        ]);
+
+        $restaurant = Restaurant::create([
+            'name' => $data['name'],
+            'slug' => $this->uniqueSlug($data['slug'] ?? $data['name']),
+            'description' => $data['description'] ?? null,
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'address' => $data['address'] ?? null,
+            'currency' => strtoupper($data['currency']),
+            'default_locale' => $data['default_locale'],
+            'timezone' => $data['timezone'],
+            'status' => $data['status'],
+        ]);
+
+        if (! empty($data['owner_id'])) {
+            $restaurant->users()->syncWithoutDetaching([
+                $data['owner_id'] => ['role' => RestaurantRole::Owner->value],
+            ]);
+        }
+
+        if (! empty($data['plan_id'])) {
+            Subscription::create([
+                'restaurant_id' => $restaurant->id,
+                'plan_id' => $data['plan_id'],
+                'status' => SubscriptionStatus::Active,
+                'starts_at' => now(),
+                'ends_at' => now()->addMonth(),
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.restaurants.show', $restaurant)
+            ->with('success', 'تم إنشاء المطعم.');
+    }
+
+    /**
+     * Build a unique slug from the given source.
+     */
+    private function uniqueSlug(string $source): string
+    {
+        $base = Str::slug($source) ?: 'restaurant';
+        $slug = $base;
+        $suffix = 2;
+
+        while (Restaurant::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $slug;
     }
 
     /**

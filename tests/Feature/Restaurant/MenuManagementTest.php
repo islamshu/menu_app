@@ -434,7 +434,8 @@ class MenuManagementTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Restaurant/Settings/Edit')
-                ->where('restaurant.id', $restaurant->id));
+                ->where('restaurant.id', $restaurant->id)
+                ->where('menu_url', route('menu.show', $restaurant->slug)));
     }
 
     public function test_staff_cannot_view_settings(): void

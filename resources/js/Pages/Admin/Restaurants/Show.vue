@@ -9,6 +9,7 @@ import Dialog from '@/Components/UI/Dialog.vue';
 import Icon from '@/Components/UI/Icon.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import MenuQrCode from '@/Components/UI/MenuQrCode.vue';
 import PageHeader from '@/Components/UI/PageHeader.vue';
 import Select from '@/Components/UI/Select.vue';
 import TextInput from '@/Components/UI/TextInput.vue';
@@ -202,6 +203,10 @@ const confirmDelete = () => {
                 </ul>
             </Card>
         </div>
+
+        <Card title="رمز QR للقائمة" class="mt-6">
+            <MenuQrCode :url="restaurant.menu_url" :name="restaurant.name" />
+        </Card>
 
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card title="الأعضاء">

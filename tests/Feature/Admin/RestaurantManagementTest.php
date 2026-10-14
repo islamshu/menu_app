@@ -119,4 +119,85 @@ class RestaurantManagementTest extends TestCase
             ->get(route('admin.restaurants.show', $restaurant))
             ->assertInertia(fn (Assert $page) => $page->has('plans', 1));
     }
+
+    public function test_super_admin_can_create_a_restaurant(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('admin.restaurants.store'), [
+                'name' => 'New Bistro',
+                'currency' => 'ILS',
+                'default_locale' => 'ar',
+                'timezone' => 'UTC',
+                'status' => 'active',
+            ])
+            ->assertSessionHas('success');
+
+        $restaurant = Restaurant::where('name', 'New Bistro')->first();
+
+        $this->assertNotNull($restaurant);
+        $this->assertSame('new-bistro', $restaurant->slug);
+        $this->assertSame(RestaurantStatus::Active, $restaurant->status);
+    }
+
+    public function test_restaurant_creation_assigns_owner_and_plan(): void
+    {
+        $owner = User::factory()->create();
+        $plan = Plan::factory()->create();
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.restaurants.store'), [
+                'name' => 'Owned Place',
+                'currency' => 'ILS',
+                'default_locale' => 'ar',
+                'timezone' => 'UTC',
+                'status' => 'active',
+                'owner_id' => $owner->id,
+                'plan_id' => $plan->id,
+            ])
+            ->assertSessionHas('success');
+
+        $restaurant = Restaurant::where('name', 'Owned Place')->firstOrFail();
+
+        $this->assertTrue($restaurant->users()->whereKey($owner->id)->exists());
+        $this->assertSame(
+            RestaurantRole::Owner->value,
+            $restaurant->users()->find($owner->id)->pivot->role,
+        );
+        $this->assertDatabaseHas('subscriptions', [
+            'restaurant_id' => $restaurant->id,
+            'plan_id' => $plan->id,
+        ]);
+    }
+
+    public function test_restaurant_slug_is_made_unique(): void
+    {
+        Restaurant::factory()->create(['slug' => 'same-name']);
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.restaurants.store'), [
+                'name' => 'Same Name',
+                'currency' => 'ILS',
+                'default_locale' => 'ar',
+                'timezone' => 'UTC',
+                'status' => 'active',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('restaurants', ['slug' => 'same-name-2']);
+    }
+
+    public function test_restaurant_creation_validates_input(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('admin.restaurants.store'), [
+                'name' => '',
+                'currency' => 'TOOLONG',
+                'default_locale' => 'ar',
+                'timezone' => 'Narnia/Neverland',
+                'status' => 'bogus',
+            ])
+            ->assertSessionHasErrors(['name', 'currency', 'timezone', 'status']);
+
+        $this->assertDatabaseCount('restaurants', 0);
+    }
 }

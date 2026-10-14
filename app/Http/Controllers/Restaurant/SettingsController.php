@@ -58,6 +58,7 @@ class SettingsController extends Controller
                 'logo' => $this->images->url($restaurant->logo),
                 'cover_image' => $this->images->url($restaurant->cover_image),
             ],
+            'menu_url' => route('menu.show', $restaurant->slug),
             'currencies' => self::CURRENCIES,
             'timezones' => timezone_identifiers_list(),
             'locales' => collect(config('locales.supported'))

@@ -5,12 +5,17 @@ import Badge from '@/Components/UI/Badge.vue';
 import Button from '@/Components/UI/Button.vue';
 import Card from '@/Components/UI/Card.vue';
 import ConfirmDialog from '@/Components/UI/ConfirmDialog.vue';
+import Dialog from '@/Components/UI/Dialog.vue';
 import EmptyState from '@/Components/UI/EmptyState.vue';
 import Icon from '@/Components/UI/Icon.vue';
+import InputError from '@/Components/InputError.vue';
+import InputLabel from '@/Components/InputLabel.vue';
 import PageHeader from '@/Components/UI/PageHeader.vue';
 import Pagination from '@/Components/UI/Pagination.vue';
 import SearchInput from '@/Components/UI/SearchInput.vue';
 import Select from '@/Components/UI/Select.vue';
+import TextInput from '@/Components/UI/TextInput.vue';
+import Textarea from '@/Components/UI/Textarea.vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps({
@@ -23,6 +28,26 @@ const props = defineProps({
         required: true,
     },
     statuses: {
+        type: Array,
+        default: () => [],
+    },
+    plans: {
+        type: Array,
+        default: () => [],
+    },
+    ownerOptions: {
+        type: Array,
+        default: () => [],
+    },
+    currencies: {
+        type: Array,
+        default: () => [],
+    },
+    locales: {
+        type: Array,
+        default: () => [],
+    },
+    timezones: {
         type: Array,
         default: () => [],
     },
@@ -68,6 +93,38 @@ const confirmDelete = () => {
         },
     });
 };
+
+const showCreate = ref(false);
+const createForm = useForm({
+    name: '',
+    slug: '',
+    description: '',
+    email: '',
+    phone: '',
+    address: '',
+    currency: 'ILS',
+    default_locale: 'ar',
+    timezone: 'UTC',
+    status: 'active',
+    owner_id: '',
+    plan_id: '',
+});
+
+const openCreate = () => {
+    createForm.reset();
+    createForm.clearErrors();
+    showCreate.value = true;
+};
+
+const submitCreate = () => {
+    createForm.post(route('admin.restaurants.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showCreate.value = false;
+            createForm.reset();
+        },
+    });
+};
 </script>
 
 <template>
@@ -77,7 +134,16 @@ const confirmDelete = () => {
         <PageHeader
             title="المطاعم"
             subtitle="أدر كل المطاعم على المنصة، حالتها واستخدامها."
-        />
+        >
+            <template #actions>
+                <Button variant="primary" @click="openCreate">
+                    <template #icon>
+                        <Icon name="plus" class="h-4 w-4" />
+                    </template>
+                    مطعم جديد
+                </Button>
+            </template>
+        </PageHeader>
 
         <Card>
             <div class="flex flex-col gap-4 border-b border-slate-100 p-4 sm:flex-row sm:items-center dark:border-slate-800">
@@ -202,6 +268,122 @@ const confirmDelete = () => {
                 class="border-t border-slate-100 p-4 dark:border-slate-800"
             />
         </Card>
+
+        <Dialog
+            :show="showCreate"
+            title="مطعم جديد"
+            max-width="2xl"
+            @close="showCreate = false"
+        >
+            <form class="space-y-5" @submit.prevent="submitCreate">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <InputLabel value="اسم المطعم" />
+                        <TextInput v-model="createForm.name" type="text" class="mt-2 w-full" />
+                        <InputError class="mt-1" :message="createForm.errors.name" />
+                    </div>
+                    <div>
+                        <InputLabel value="الرابط (اختياري)" />
+                        <TextInput v-model="createForm.slug" type="text" dir="ltr" class="mt-2 w-full" placeholder="my-restaurant" />
+                        <InputError class="mt-1" :message="createForm.errors.slug" />
+                    </div>
+                </div>
+
+                <div>
+                    <InputLabel value="نبذة" />
+                    <Textarea v-model="createForm.description" class="mt-2 w-full" />
+                    <InputError class="mt-1" :message="createForm.errors.description" />
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                        <InputLabel value="رقم الهاتف" />
+                        <TextInput v-model="createForm.phone" type="tel" dir="ltr" class="mt-2 w-full" />
+                        <InputError class="mt-1" :message="createForm.errors.phone" />
+                    </div>
+                    <div>
+                        <InputLabel value="البريد الإلكتروني" />
+                        <TextInput v-model="createForm.email" type="email" dir="ltr" class="mt-2 w-full" />
+                        <InputError class="mt-1" :message="createForm.errors.email" />
+                    </div>
+                    <div>
+                        <InputLabel value="العنوان" />
+                        <TextInput v-model="createForm.address" type="text" class="mt-2 w-full" />
+                        <InputError class="mt-1" :message="createForm.errors.address" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                        <InputLabel value="العملة" />
+                        <Select
+                            v-model="createForm.currency"
+                            class="mt-2 w-full"
+                            :options="currencies.map((c) => ({ value: c.code, label: c.label }))"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.currency" />
+                    </div>
+                    <div>
+                        <InputLabel value="اللغة الافتراضية" />
+                        <Select
+                            v-model="createForm.default_locale"
+                            class="mt-2 w-full"
+                            :options="locales.map((l) => ({ value: l.code, label: l.label }))"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.default_locale" />
+                    </div>
+                    <div>
+                        <InputLabel value="المنطقة الزمنية" />
+                        <Select
+                            v-model="createForm.timezone"
+                            class="mt-2 w-full"
+                            :options="timezones.map((t) => ({ value: t, label: t }))"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.timezone" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                        <InputLabel value="الحالة" />
+                        <Select
+                            v-model="createForm.status"
+                            class="mt-2 w-full"
+                            :options="statuses.map((s) => ({ value: s.value, label: s.label }))"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.status" />
+                    </div>
+                    <div>
+                        <InputLabel value="المالك (اختياري)" />
+                        <Select
+                            v-model="createForm.owner_id"
+                            class="mt-2 w-full"
+                            :options="[{ value: '', label: 'بدون' }, ...ownerOptions.map((u) => ({ value: u.id, label: u.name }))]"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.owner_id" />
+                    </div>
+                    <div>
+                        <InputLabel value="الباقة (اختياري)" />
+                        <Select
+                            v-model="createForm.plan_id"
+                            class="mt-2 w-full"
+                            :options="[{ value: '', label: 'بدون' }, ...plans.map((p) => ({ value: p.id, label: p.name }))]"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.plan_id" />
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <Button variant="ghost" @click="showCreate = false">إلغاء</Button>
+                    <Button variant="primary" type="submit" :loading="createForm.processing">
+                        <template #icon>
+                            <Icon name="check" class="h-4 w-4" />
+                        </template>
+                        إنشاء
+                    </Button>
+                </div>
+            </form>
+        </Dialog>
 
         <ConfirmDialog
             :show="Boolean(deleting)"

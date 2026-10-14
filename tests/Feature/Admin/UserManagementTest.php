@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -73,5 +74,42 @@ class UserManagementTest extends TestCase
             ->assertSessionHas('error');
 
         $this->assertTrue($admin->fresh()->isSuperAdmin());
+    }
+
+    public function test_super_admin_can_create_a_user(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.store'), [
+                'name' => 'New Person',
+                'email' => 'new@example.com',
+                'password' => 'password',
+                'password_confirmation' => 'password',
+                'is_super_admin' => true,
+            ])
+            ->assertSessionHas('success');
+
+        $user = User::where('email', 'new@example.com')->first();
+
+        $this->assertNotNull($user);
+        $this->assertTrue($user->isSuperAdmin());
+        $this->assertTrue(Hash::check('password', $user->password));
+    }
+
+    public function test_user_creation_validates_input(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.store'), [
+                'name' => '',
+                'email' => 'not-an-email',
+                'password' => 'short',
+                'password_confirmation' => 'different',
+            ])
+            ->assertSessionHasErrors(['name', 'email', 'password']);
+
+        $this->assertDatabaseCount('users', 1);
     }
 }

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', DashboardController::class)->name('dashboard');
 
 Route::get('restaurants', [RestaurantController::class, 'index'])->name('restaurants.index');
+Route::post('restaurants', [RestaurantController::class, 'store'])->name('restaurants.store');
 Route::get('restaurants/{restaurant}', [RestaurantController::class, 'show'])->name('restaurants.show');
 Route::patch('restaurants/{restaurant}/status', [RestaurantController::class, 'updateStatus'])->name('restaurants.status');
 Route::delete('restaurants/{restaurant}', [RestaurantController::class, 'destroy'])->name('restaurants.destroy');
@@ -26,4 +27,5 @@ Route::patch('subscriptions/{subscription}/status', [SubscriptionController::cla
 Route::delete('subscriptions/{subscription}', [SubscriptionController::class, 'destroy'])->name('subscriptions.destroy');
 
 Route::get('users', [UserController::class, 'index'])->name('users.index');
+Route::post('users', [UserController::class, 'store'])->name('users.store');
 Route::patch('users/{user}/super-admin', [UserController::class, 'toggleSuperAdmin'])->name('users.super-admin');
