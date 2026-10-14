@@ -45,6 +45,17 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /**
+     * Restaurants where this user holds the owner role.
+     *
+     * @return BelongsToMany<Restaurant, $this>
+     */
+    public function ownedRestaurants(): BelongsToMany
+    {
+        return $this->restaurants()
+            ->wherePivot('role', RestaurantRole::Owner->value);
+    }
+
     public function isSuperAdmin(): bool
     {
         return (bool) $this->is_super_admin;

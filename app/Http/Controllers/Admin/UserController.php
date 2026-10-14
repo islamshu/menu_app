@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\RestaurantRole;
 use App\Http\Controllers\Controller;
 use App\Models\Restaurant;
 use App\Models\User;
@@ -26,9 +25,7 @@ class UserController extends Controller
 
         $users = User::query()
             ->withCount('restaurants')
-            ->withCount([
-                'restaurants as owned_restaurants_count' => fn ($query) => $query->wherePivot('role', RestaurantRole::Owner->value),
-            ])
+            ->withCount('ownedRestaurants')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('name', 'like', "%{$search}%")
@@ -118,8 +115,7 @@ class UserController extends Controller
 
         // Keep derived restaurant contact emails in sync with the owner.
         if ($oldEmail !== $user->email) {
-            $user->restaurants()
-                ->wherePivot('role', RestaurantRole::Owner->value)
+            $user->ownedRestaurants()
                 ->where('email', $oldEmail)
                 ->get()
                 ->each(function (Restaurant $restaurant) use ($user) {
@@ -155,9 +151,7 @@ class UserController extends Controller
             return back()->with('error', 'لا يمكنك حذف حسابك الخاص.');
         }
 
-        $ownsRestaurants = $user->restaurants()
-            ->wherePivot('role', RestaurantRole::Owner->value)
-            ->exists();
+        $ownsRestaurants = $user->ownedRestaurants()->exists();
 
         if ($ownsRestaurants) {
             return back()->with('error', 'لا يمكن حذف مستخدم يملك مطاعم. انقل الملكية أو احذف المطاعم أولاً.');
