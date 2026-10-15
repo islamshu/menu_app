@@ -1,9 +1,5 @@
 import { buildMatrix, escapeXml, isFinder, isTiming } from './qr-core.js';
 
-
-/**
- * Convert hex to RGB array
- */
 function hexToRgb(hex) {
     if (typeof hex !== 'string') return [0, 0, 0];
     let v = hex.trim().replace('#', '');
@@ -14,12 +10,243 @@ function hexToRgb(hex) {
     return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
 }
 
-function rgbToCss(r, g, b) {
-    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+/**
+ * The 1-based origin of each finder (eye) pattern: [row, col].
+ * QR finders are always 7x7 at three corners.
+ * @returns {Array<[number, number]>}
+ */
+function finderOrigins(count) {
+    return [
+        [0, 0],
+        [0, count - 7],
+        [count - 7, 0],
+    ];
+}
+
+function finderOriginFor(count, r, c) {
+    const origins = finderOrigins(count);
+    for (const [or, oc] of origins) {
+        if (r >= or && r < or + 7 && c >= oc && c < oc + 7) {
+            return [or, oc];
+        }
+    }
+    return null;
 }
 
 /**
- * Build RGBA ImageData-like object (for tests/decoding). Pure, DOM-free.
+ * Build one SVG string for the dark modules (excluding eyes) honouring the
+ * requested module style, plus a separate string for the three eyes.
+ */
+function buildSvgShapes(count, modules, cellSize, m, { moduleStyle, eyeStyle, foregroundColor, eyeColor, logo }) {
+    let normal = '';
+    const eyeSet = new Set();
+    for (const [or, oc] of finderOrigins(count)) {
+        eyeSet.add(`${or}:${oc}`);
+    }
+
+    for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+            if (!modules[r][c]) continue;
+            const origin = finderOriginFor(count, r, c);
+            if (origin) continue; // eyes are drawn separately
+
+            const x = m + c * cellSize;
+            const y = m + r * cellSize;
+            const cx = x + cellSize / 2;
+            const cy = y + cellSize / 2;
+
+            switch (moduleStyle) {
+                case 'dots': {
+                    normal += `<circle cx="${cx}" cy="${cy}" r="${(cellSize * 0.44).toFixed(2)}"/>`;
+                    break;
+                }
+                case 'diamond': {
+                    const t = cellSize * 0.06;
+                    normal += `<path d="M${cx} ${y + t} L${x + cellSize - t} ${cy} L${cx} ${y + cellSize - t} L${x + t} ${cy} z"/>`;
+                    break;
+                }
+                case 'rounded': {
+                    normal += `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="${(cellSize * 0.32).toFixed(2)}" ry="${(cellSize * 0.32).toFixed(2)}"/>`;
+                    break;
+                }
+                default: {
+                    normal += `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}"/>`;
+                }
+            }
+        }
+    }
+
+    let eyes = '';
+    for (const [or, oc] of finderOrigins(count)) {
+        const x = m + oc * cellSize;
+        const y = m + or * cellSize;
+        const s = cellSize;
+        const size = 7 * s;
+        const cx = x + size / 2;
+        const cy = y + size / 2;
+
+        if (eyeStyle === 'circle') {
+            eyes += `<circle cx="${cx}" cy="${cy}" r="${(3 * s).toFixed(2)}" fill="none" stroke="${eyeColor}" stroke-width="${s}"/>`;
+            eyes += `<circle cx="${cx}" cy="${cy}" r="${(1.5 * s).toFixed(2)}" fill="${eyeColor}"/>`;
+        } else if (eyeStyle === 'rounded') {
+            const outer = 1.6 * s;
+            const inner = 0.8 * s;
+            eyes += `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${outer.toFixed(2)}" ry="${outer.toFixed(2)}" fill="none" stroke="${eyeColor}" stroke-width="${s}"/>`;
+            eyes += `<rect x="${x + 2 * s}" y="${y + 2 * s}" width="${3 * s}" height="${3 * s}" rx="${inner.toFixed(2)}" ry="${inner.toFixed(2)}" fill="${eyeColor}"/>`;
+        } else {
+            eyes += `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${eyeColor}" stroke-width="${s}"/>`;
+            eyes += `<rect x="${x + 2 * s}" y="${y + 2 * s}" width="${3 * s}" height="${3 * s}" fill="${eyeColor}"/>`;
+        }
+    }
+
+    return { normal, eyes };
+}
+
+/**
+ * QR artwork SVG (QR + optional frame, label and logo).
+ * @returns {{ svg: string, size: number }}
+ */
+function qrSvgInner(text, options = {}) {
+    const {
+        errorLevel = 'M',
+        moduleStyle = 'square',
+        eyeStyle = 'square',
+        quietZone = 4,
+        cellSize = 8,
+        foregroundColor = '#000000',
+        backgroundColor = '#ffffff',
+        eyeColor = '#000000',
+        logo = '',
+    } = options;
+
+    const { count, modules } = buildMatrix(text, errorLevel);
+    const m = quietZone * cellSize;
+    const size = count * cellSize + m * 2;
+
+    const { normal, eyes } = buildSvgShapes(count, modules, cellSize, m, {
+        moduleStyle,
+        eyeStyle,
+        foregroundColor,
+        eyeColor,
+        logo,
+    });
+
+    let inner = `<rect x="0" y="0" width="${size}" height="${size}" fill="${backgroundColor}"/>`;
+    inner += `<g fill="${foregroundColor}">${normal}</g>`;
+    inner += `<g>${eyes}</g>`;
+
+    if (logo) {
+        const logoSize = size * 0.22;
+        const logoX = (size - logoSize) / 2;
+        const pad = cellSize * 0.6;
+        inner += `<rect x="${(logoX - pad).toFixed(2)}" y="${(logoX - pad).toFixed(2)}" width="${(logoSize + pad * 2).toFixed(2)}" height="${(logoSize + pad * 2).toFixed(2)}" rx="${(pad).toFixed(2)}" fill="${backgroundColor}"/>`;
+        inner += `<image x="${logoX.toFixed(2)}" y="${logoX.toFixed(2)}" width="${logoSize.toFixed(2)}" height="${logoSize.toFixed(2)}" preserveAspectRatio="xMidYMid meet" href="${logo}"/>`;
+    }
+
+    return { inner, size, count };
+}
+
+/**
+ * QR-only SVG (backwards compatible with the previous `qrSvg(text, opts)` shape).
+ */
+export function qrSvg(text, options = {}) {
+    const {
+        cellSize = 8,
+        margin = 4,
+        marginModules,
+        quietZone,
+        alt = '',
+        title = '',
+        scalable = true,
+    } = options;
+
+    const { inner, size } = qrSvgInner(text, {
+        ...options,
+        cellSize,
+        quietZone: marginModules ?? quietZone ?? margin,
+    });
+
+    let svg = '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
+    svg += !scalable ? ` width="${size}px" height="${size}px"` : '';
+    svg += ` viewBox="0 0 ${size} ${size}" preserveAspectRatio="xMinYMin meet"`;
+    if (title || alt) {
+        svg += ' role="img"';
+    }
+    svg += '>';
+    if (title) svg += `<title>${escapeXml(title)}</title>`;
+    if (alt) svg += `<desc>${escapeXml(alt)}</desc>`;
+    svg += inner;
+    svg += '</svg>';
+    return svg;
+}
+
+/**
+ * QR artwork with an optional frame and label, ready for preview/export/print.
+ */
+export function qrArtworkSvg(text, settings = {}, { label = '', logo = '' } = {}) {
+    const {
+        error_level = 'Q',
+        module_style = 'rounded',
+        eye_style = 'rounded',
+        frame_style = 'none',
+        quiet_zone = 4,
+        foreground_color = '#000000',
+        background_color = '#ffffff',
+        eye_color = '#000000',
+        frame_label = '',
+    } = settings;
+
+    const finalLabel = String(frame_label || label || '').trim();
+    const { inner, size } = qrSvgInner(text, {
+        errorLevel: error_level,
+        moduleStyle: module_style,
+        eyeStyle: eye_style,
+        quietZone: quiet_zone,
+        foregroundColor: foreground_color,
+        backgroundColor: background_color,
+        eyeColor: eye_color,
+        logo,
+    });
+
+    const font = "system-ui, -apple-system, 'Segoe UI', 'IBM Plex Sans Arabic', sans-serif";
+
+    if (frame_style === 'none') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" preserveAspectRatio="xMinYMin meet"><g>${inner}</g></svg>`;
+    }
+
+    if (frame_style === 'label') {
+        const labelH = finalLabel ? 46 : 0;
+        const totalH = size + labelH;
+        let out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${totalH}" preserveAspectRatio="xMinYMin meet">`;
+        out += `<rect x="0" y="0" width="${size}" height="${totalH}" fill="${background_color}"/>`;
+        out += `<g>${inner}</g>`;
+        if (finalLabel) {
+            out += `<text x="${size / 2}" y="${size + 30}" text-anchor="middle" font-family="${font}" font-size="18" fill="${foreground_color}">${escapeXml(finalLabel)}</text>`;
+        }
+        out += '</svg>';
+        return out;
+    }
+
+    const pad = Math.round(size * 0.06);
+    const labelH = finalLabel ? 44 : 0;
+    const totalW = size + pad * 2;
+    const totalH = size + pad * 2 + labelH;
+    const radius = frame_style === 'card' ? 24 : 12;
+    const dash = frame_style === 'ticket' ? ' stroke-dasharray="14 10"' : '';
+
+    let out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMinYMin meet">`;
+    out += `<rect x="1" y="1" width="${totalW - 2}" height="${totalH - 2}" rx="${radius}" ry="${radius}" fill="${background_color}" stroke="${foreground_color}" stroke-opacity="0.16" stroke-width="2"${dash}/>`;
+    out += `<g transform="translate(${pad},${pad})">${inner}</g>`;
+    if (finalLabel) {
+        out += `<text x="${totalW / 2}" y="${size + pad + 30}" text-anchor="middle" font-family="${font}" font-size="17" font-weight="600" fill="${foreground_color}">${escapeXml(finalLabel)}</text>`;
+    }
+    out += '</svg>';
+    return out;
+}
+
+/**
+ * Pure, DOM-free RGBA buffer (used by the decoding test-suite). Honours colours,
+ * module/eye styles and the quiet zone. Eyes are rendered solid for reliability.
  * @returns {{width:number,height:number,data:Uint8ClampedArray}}
  */
 export function qrMatrixRgba(text, options = {}) {
@@ -31,6 +258,7 @@ export function qrMatrixRgba(text, options = {}) {
         foregroundColor = '#000000',
         backgroundColor = '#ffffff',
         eyeColor = '#000000',
+        logo = '',
     } = options;
 
     const { count, modules } = buildMatrix(text, errorLevel);
@@ -44,32 +272,80 @@ export function qrMatrixRgba(text, options = {}) {
     const fg = hexToRgb(foregroundColor);
     const eye = hexToRgb(eyeColor);
 
-    function setPixel(x, y, r, g, b, a = 255) {
-        if (x < 0 || y < 0 || x >= width || y >= height) return;
-        const i = (y * width + x) * 4;
-        data[i] = r;
-        data[i + 1] = g;
-        data[i + 2] = b;
-        data[i + 3] = a;
-    }
-
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            setPixel(x, y, bg[0], bg[1], bg[2]);
+            const i = (y * width + x) * 4;
+            data[i] = bg[0];
+            data[i + 1] = bg[1];
+            data[i + 2] = bg[2];
+            data[i + 3] = 255;
         }
     }
+
+    const fill = (px, py, col) => {
+        if (px < 0 || py < 0 || px >= width || py >= height) return;
+        const i = (py * width + px) * 4;
+        data[i] = col[0];
+        data[i + 1] = col[1];
+        data[i + 2] = col[2];
+        data[i + 3] = 255;
+    };
+
+    const inShape = (dx, dy) => {
+        const half = cell / 2;
+        const nx = dx - (half - 0.5);
+        const ny = dy - (half - 0.5);
+        switch (moduleStyle) {
+            case 'dots':
+                return Math.hypot(nx, ny) <= cell * 0.46;
+            case 'diamond':
+                return Math.abs(nx) + Math.abs(ny) <= cell * 0.82;
+            case 'rounded': {
+                const r = cell * 0.32;
+                const ax = Math.abs(nx);
+                const ay = Math.abs(ny);
+                const lim = half - r;
+                if (ax <= lim || ay <= lim) return true;
+                return Math.hypot(ax - lim, ay - lim) <= r;
+            }
+            default:
+                return true;
+        }
+    };
 
     for (let r = 0; r < count; r++) {
         for (let c = 0; c < count; c++) {
             if (!modules[r][c]) continue;
+            const isF = isFinder(count, r, c);
+            const isT = isTiming(count, r, c);
+            const col = isF ? eye : fg;
             const ox = margin + c * cell;
             const oy = margin + r * cell;
-            const isF = isFinder(count, r, c);
-            const col = isF ? eye : fg;
             for (let dy = 0; dy < cell; dy++) {
                 for (let dx = 0; dx < cell; dx++) {
-                    setPixel(ox + dx, oy + dy, col[0], col[1], col[2]);
+                    if (isF || isT || inShape(dx, dy)) {
+                        fill(ox + dx, oy + dy, col);
+                    }
                 }
+            }
+        }
+    }
+
+    // Logo overlay (solid centred square simulating the embedded logo).
+    if (logo) {
+        const logoSize = Math.round(width * 0.2);
+        const start = Math.round((width - logoSize) / 2);
+        const pad = Math.round(cell * 0.6);
+        const bgCol = bg;
+        for (let y = start - pad; y < start + logoSize + pad; y++) {
+            for (let x = start - pad; x < start + logoSize + pad; x++) {
+                fill(x, y, bgCol);
+            }
+        }
+        const logoCol = [120, 120, 120];
+        for (let y = start; y < start + logoSize; y++) {
+            for (let x = start; x < start + logoSize; x++) {
+                fill(x, y, logoCol);
             }
         }
     }
@@ -77,158 +353,32 @@ export function qrMatrixRgba(text, options = {}) {
     return { width, height, data };
 }
 
-export { buildMatrix, escapeXml, isFinder, isTiming };
-
 /**
- * Render QR-only SVG (no frame).
- */
-export function qrSvg(text, options = {}) {
-    const {
-        errorLevel = 'M',
-        moduleStyle = 'square',
-        eyeStyle = 'square',
-        quietZone = 4,
-        cellSize = 8,
-        marginModules,
-        foregroundColor = '#000000',
-        backgroundColor = '#ffffff',
-        eyeColor = '#000000',
-        alt = '',
-        title = '',
-        scalable = true,
-    } = options;
-
-    const marginM = marginModules ?? quietZone;
-    const { count, modules } = buildMatrix(text, errorLevel);
-    const size = count * cellSize + marginM * 2 * cellSize;
-    const m = marginM * cellSize;
-
-    const bg = backgroundColor;
-    const fg = foregroundColor;
-    const eye = eyeColor;
-
-    let path = '';
-    for (let r = 0; r < count; r++) {
-        for (let c = 0; c < count; c++) {
-            if (!modules[r][c]) continue;
-            const isF = isFinder(count, r, c);
-            const mc = m + c * cellSize;
-            const mr = m + r * cellSize;
-            const col = isF ? eye : fg;
-            const rect = 'l' + cellSize + ',0 0,' + cellSize + ' -' + cellSize + ',0 z';
-            path += (path ? ' ' : '') + 'M' + mc + ',' + mr + rect;
-        }
-    }
-
-    let svg = '';
-    svg += '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
-    svg += !scalable ? ' width="' + size + 'px" height="' + size + 'px"' : '';
-    svg += ' viewBox="0 0 ' + size + ' ' + size + '" ';
-    svg += ' preserveAspectRatio="xMinYMin meet"';
-    if (title || alt) {
-        const id = 'qr-desc-' + Math.random().toString(36).slice(2, 8);
-        svg += ' role="img" aria-labelledby="' + id + '"';
-    }
-    svg += '>';
-    if (title) svg += '<title id="qr-title-' + Math.random().toString(36).slice(2, 8) + '">' + escapeXml(title) + '</title>';
-    if (alt) svg += '<desc>' + escapeXml(alt) + '</desc>';
-    svg += '<rect width="100%" height="100%" fill="' + bg + '" cx="0" cy="0"/>';
-    svg += '<path d="' + path + '" stroke="transparent" fill="' + fg + '"/>';
-    svg += '</svg>';
-    return svg;
-}
-
-/**
- * QR artwork with frame + label (SVG).
- */
-export function qrArtworkSvg(text, settings = {}, { label = '' } = {}) {
-    const {
-        error_level = 'Q',
-        module_style = 'rounded',
-        eye_style = 'rounded',
-        frame_style = 'none',
-        quiet_zone = 4,
-        foreground_color = '#000000',
-        background_color = '#ffffff',
-        eye_color = '#000000',
-        frame_label = '',
-    } = settings;
-
-    const finalLabel = frame_label || label || '';
-    const q = qrSvg(text, {
-        errorLevel: error_level,
-        moduleStyle: module_style,
-        eyeStyle: eye_style,
-        quietZone: quiet_zone,
-        foregroundColor: foreground_color,
-        backgroundColor: background_color,
-        eyeColor: eye_color,
-        scalable: true,
-    });
-
-    if (frame_style === 'none' || frame_style === 'label') {
-        // return QR with optional label space handled? simple: wrap in container; for 'label' append text below
-        // extract inner SVG viewBox/size
-        const m = /viewBox="0 0 ([0-9.]+) ([0-9.]+)"/.exec(q);
-        const w = m ? parseFloat(m[1]) : 256;
-        const h = m ? parseFloat(m[2]) : 256;
-        const labelH = finalLabel ? 40 : 0;
-        const totalH = h + labelH;
-        const svgInner = q.replace(/<svg[^>]*>/, '').replace('</svg>', '');
-        let out = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + totalH + '" preserveAspectRatio="xMinYMin meet">';
-        out += '<rect width="100%" height="100%" fill="' + background_color + '"/>';
-        // re-insert inner (QR) at top
-        out += svgInner.replace(/<rect[^>]*fill="[^"]*"[^>]*\/>/, '');
-        if (finalLabel) {
-            out += '<text x="' + w / 2 + '" y="' + (h + 28) + '" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="16" fill="' + foreground_color + '">' + escapeXml(finalLabel) + '</text>';
-        }
-        out += '</svg>';
-        return out;
-    }
-
-    // card/ticket: add rounded border
-    const m = /viewBox="0 0 ([0-9.]+) ([0-9.]+)"/.exec(q);
-    const w = m ? parseFloat(m[1]) : 256;
-    const h = m ? parseFloat(m[2]) : 256;
-    const pad = 20;
-    const labelH = finalLabel ? 40 : 0;
-    const totalW = w + pad * 2;
-    const totalH = h + pad * 2 + labelH;
-    const svgInner = q.replace(/<svg[^>]*>/, '').replace('</svg>', '');
-    let out = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + totalW + ' ' + totalH + '" preserveAspectRatio="xMinYMin meet">';
-    out += '<rect width="100%" height="100%" rx="20" ry="20" fill="' + background_color + '" stroke="#e5e7eb" stroke-width="1"/>';
-    out += '<g transform="translate(' + pad + ',' + pad + ')">' + svgInner.replace(/<rect[^>]*fill="[^"]*"[^>]*\/>/, '') + '</g>';
-    if (finalLabel) {
-        out += '<text x="' + totalW / 2 + '" y="' + (h + pad * 2 + 24) + '" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="15" fill="' + foreground_color + '">' + escapeXml(finalLabel) + '</text>';
-    }
-    out += '</svg>';
-    return out;
-}
-
-/**
- * Rasterize SVG string to PNG Data URL (returns Promise<string>).
+ * Rasterize an SVG string to a PNG data URL.
  */
 export async function rasterizeSvgToPng(svg, size = 1024) {
     return new Promise((resolve, reject) => {
         const canvas = document.createElement('canvas');
+        const meta = /viewBox="0 0 ([0-9.]+) ([0-9.]+)"/.exec(svg);
+        const ratio = meta ? parseFloat(meta[2]) / parseFloat(meta[1]) : 1;
         canvas.width = size;
-        canvas.height = size;
+        canvas.height = Math.round(size * ratio);
         const ctx = canvas.getContext('2d');
         const img = new Image();
+        const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
         img.onload = () => {
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, size, size);
-            ctx.drawImage(img, 0, 0, size, size);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             try {
                 resolve(canvas.toDataURL('image/png'));
             } catch (e) {
                 reject(e);
             }
         };
-        img.onerror = reject;
-        const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
+        img.onerror = () => reject(new Error('Failed to rasterize SVG'));
         img.src = url;
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
 }
+
+export { buildMatrix, escapeXml, isFinder, isTiming };

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import Badge from '@/Components/UI/Badge.vue';
 import Button from '@/Components/UI/Button.vue';
@@ -13,7 +13,7 @@ import Select from '@/Components/UI/Select.vue';
 import TextInput from '@/Components/UI/TextInput.vue';
 import RestaurantLayout from '@/Layouts/RestaurantLayout.vue';
 import QrPreview from '@/Components/Qr/QrPreview.vue';
-import { qrArtworkSvg, downloadDataUrl, downloadTextFile, printQrCode, rasterizeSvgToPng } from '@/Support/qr';
+import { qrArtworkSvg, downloadDataUrl, downloadTextFile, imageToDataUrl, printQrCode, rasterizeSvgToPng } from '@/Support/qr';
 import { useToasts } from '@/Composables/useToasts';
 import { contrastRatio, hexToRgb } from '@/Support/branding';
 
@@ -65,8 +65,25 @@ const exporting = ref(false);
 
 const selectedPreset = computed(() => props.presets.find((p) => p.key === form.preset_key) || props.presets[0]);
 
+const logoDataUrl = ref('');
+
+watch(
+    () => [form.logo_enabled, props.restaurant.logo],
+    async ([enabled]) => {
+        if (enabled && props.restaurant.logo) {
+            logoDataUrl.value = await imageToDataUrl(props.restaurant.logo);
+        } else {
+            logoDataUrl.value = '';
+        }
+    },
+    { immediate: true },
+);
+
 const artwork = computed(() => {
-    return qrArtworkSvg(props.menu_url, form.data(), { label: form.frame_label || props.restaurant.name });
+    return qrArtworkSvg(props.menu_url, form.data(), {
+        label: form.frame_label || props.restaurant.name,
+        logo: form.logo_enabled ? logoDataUrl.value : '',
+    });
 });
 
 const contrastWarn = computed(() => {
@@ -85,6 +102,7 @@ const filename = computed(() => {
 const applyPreset = (key) => {
     const p = props.presets.find((x) => x.key === key);
     if (!p) return;
+    form.preset_key = key;
     KEYS.forEach((k) => {
         if (p.defaults[k] !== undefined) form[k] = p.defaults[k];
     });
@@ -224,7 +242,13 @@ const print = () => {
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <InputLabel value="إدراج شعار المطعم" />
-                            <Select v-model="form.logo_enabled" class="mt-2 w-full" :options="[{value:true,label:'نعم'},{value:false,label:'لا'}]" />
+                            <label class="mt-2 flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" v-model="form.logo_enabled" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                                استخدام شعار المطعم
+                            </label>
+                            <p v-if="!restaurant.logo" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                لا يوجد شعار للمطعم. أضِفه من الإعدادات أولاً.
+                            </p>
                             <InputError class="mt-1" :message="form.errors.logo_enabled" />
                         </div>
                         <div v-if="form.logo_enabled">

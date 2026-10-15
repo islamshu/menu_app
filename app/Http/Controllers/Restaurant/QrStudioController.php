@@ -7,6 +7,7 @@ use App\Http\Controllers\Restaurant\Concerns\ResolvesActiveRestaurant;
 use App\Http\Requests\Restaurant\UpdateQrCodeRequest;
 use App\Models\Restaurant;
 use App\Models\RestaurantQrCode;
+use App\Services\ImageManager;
 use App\Services\Qr\QrSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +18,10 @@ class QrStudioController extends Controller
 {
     use ResolvesActiveRestaurant;
 
-    public function __construct(private readonly QrSettings $settings) {}
+    public function __construct(
+        private readonly QrSettings $settings,
+        private readonly ImageManager $images,
+    ) {}
 
     public function edit(): Response
     {
@@ -29,7 +33,7 @@ class QrStudioController extends Controller
                 'id' => $restaurant->id,
                 'name' => $restaurant->name,
                 'slug' => $restaurant->slug,
-                'logo' => $restaurant->logo,
+                'logo' => $this->images->url($restaurant->logo),
             ],
             'menu_url' => route('menu.show', $restaurant->slug),
             'presets' => $this->settings->presetsForFrontend(),

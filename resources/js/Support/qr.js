@@ -1,37 +1,12 @@
-import qrcode from './qrcode.js';
-import { buildMatrix, qrArtworkSvg, qrSvg as qrSvgStyled, rasterizeSvgToPng } from './qr-render.js';
+import { buildMatrix, qrArtworkSvg, qrMatrixRgba, qrSvg, rasterizeSvgToPng } from './qr-render.js';
+import { encodeQr } from './qr-core.js';
 
-function encode(text, errorCorrection = 'M') {
-    const qr = qrcode(0, errorCorrection);
-    qr.addData(String(text));
-    qr.make();
-    return qr;
-}
-
-export function qrSvg(text, options = {}) {
-    if (options && (options.moduleStyle || options.module_style || options.eyeStyle || options.eye_style || options.foregroundColor)) {
-        const settings = {
-            error_level: options.errorLevel || options.error_level || 'M',
-            module_style: options.moduleStyle || options.module_style || 'square',
-            eye_style: options.eyeStyle || options.eye_style || 'square',
-            quiet_zone: options.quietZone || options.quiet_zone || options.marginModules || 4,
-            foreground_color: options.foregroundColor || options.foreground_color || '#000000',
-            background_color: options.backgroundColor || options.background_color || '#ffffff',
-            eye_color: options.eyeColor || options.eye_color || options.foregroundColor || '#000000',
-        };
-        return qrSvgStyled(text, settings);
-    }
-    return encode(text).createSvgTag({
-        cellSize: options.cellSize || 8,
-        margin: options.margin || 4,
-        alt: options.alt || '',
-        title: options.title || '',
-        scalable: true,
-    });
-}
-
+/**
+ * Legacy monochrome PNG export (canvas, no styles). Kept for the simple
+ * `MenuQrCode` widget on the settings/admin screens.
+ */
 export function qrPngDataUrl(text, options = {}) {
-    const qr = encode(text);
+    const qr = encodeQr(text, options.errorCorrection || 'M');
     const count = qr.getModuleCount();
     const scale = options.scale || 12;
     const margin = options.margin || 4;
@@ -73,6 +48,34 @@ export function downloadTextFile(content, filename, mime = 'text/plain') {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * Load an image (same-origin or data URL) and return a portable data URL so it
+ * can be embedded in an exported SVG or rasterized PNG without tainting.
+ * Resolves to `''` when the image cannot be loaded.
+ */
+export async function imageToDataUrl(url) {
+    if (!url) return '';
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            } catch {
+                resolve('');
+            }
+        };
+        img.onerror = () => resolve('');
+        img.src = url;
+    });
+}
+
 export function printQrCode(svg, { title = '', subtitle = '' } = {}) {
     const win = window.open('', '_blank', 'width=640,height=760');
     if (!win) {
@@ -103,6 +106,4 @@ export function printQrCode(svg, { title = '', subtitle = '' } = {}) {
     setTimeout(() => win.print(), 350);
 }
 
-export { buildMatrix, qrArtworkSvg, rasterizeSvgToPng, qrSvgStyled };
-export { qrMatrixRgba } from './qr-render.js';
-export { encodeQr } from './qr-core.js';
+export { buildMatrix, encodeQr, qrArtworkSvg, qrMatrixRgba, qrSvg, rasterizeSvgToPng };
