@@ -57,6 +57,20 @@ if (a === b) {
   console.log('OK styling-variance');
 }
 
+// Regression guard: finder (eye) patterns must be drawn with exact,
+// module-aligned geometry. A previous bug drew them with centred strokes,
+// offsetting them by half a module and breaking every real scanner.
+const eyeSvg = qrSvg('https://example.com/m/x', { quietZone: 4, cellSize: 8, eyeStyle: 'square', eyeColor: '#000000' });
+if (!eyeSvg.includes('<rect x="32" y="32" width="56" height="56"')) {
+  failures++;
+  console.error('FAIL finder-geometry: eye is not module-aligned (expected 7x7 at x/y=32)');
+} else if (eyeSvg.includes('<rect x="32" y="32" width="56" height="56" fill="#000000" stroke')) {
+  failures++;
+  console.error('FAIL finder-geometry: eye must not use a stroke');
+} else {
+  console.log('OK finder-geometry');
+}
+
 // Regression guard: distinct module styles must produce distinct SVG geometry.
 const shapes = ['square', 'rounded', 'dots', 'diamond'].map((moduleStyle) =>
   qrSvg('https://example.com/m/x', { ...base, moduleStyle }),
@@ -72,6 +86,6 @@ if (failures) {
   console.error('QR decode test failed:', failures);
   process.exit(1);
 } else {
-  console.log('QR decode tests passed:', cases.length + 2);
+  console.log('QR decode tests passed:', cases.length + 3);
   process.exit(0);
 }

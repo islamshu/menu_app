@@ -69,7 +69,7 @@ const LOGO_MIN_RATIO = 0.08;
 const LOGO_MAX_RATIO = 0.15;
 const LOGO_SAFE_LEVEL = 'H';
 // Clearance (in modules) kept between the logo and the nearest QR module.
-const LOGO_PAD_MODULES = 1;
+const LOGO_PAD_MODULES = 1.5;
 
 /**
  * A centre logo covers part of the QR, so it can only be recovered when the
@@ -90,12 +90,8 @@ function resolveLogoPolicy(hasLogo, errorLevel, logoRatio) {
  * Build one SVG string for the dark modules (excluding eyes) honouring the
  * requested module style, plus a separate string for the three eyes.
  */
-function buildSvgShapes(count, modules, cellSize, m, { moduleStyle, eyeStyle, foregroundColor, eyeColor, logo }) {
+function buildSvgShapes(count, modules, cellSize, m, { moduleStyle, eyeStyle, backgroundColor, eyeColor }) {
     let normal = '';
-    const eyeSet = new Set();
-    for (const [or, oc] of finderOrigins(count)) {
-        eyeSet.add(`${or}:${oc}`);
-    }
 
     for (let r = 0; r < count; r++) {
         for (let c = 0; c < count; c++) {
@@ -107,15 +103,27 @@ function buildSvgShapes(count, modules, cellSize, m, { moduleStyle, eyeStyle, fo
             const y = m + r * cellSize;
             const cx = x + cellSize / 2;
             const cy = y + cellSize / 2;
+            const square = `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}"/>`;
+
+            // The timing pattern is what scanners lock onto to establish the
+            // module grid; it must stay a solid line regardless of style.
+            if (isTiming(count, r, c)) {
+                normal += square;
+                continue;
+            }
 
             switch (moduleStyle) {
                 case 'dots': {
-                    normal += `<circle cx="${cx}" cy="${cy}" r="${(cellSize * 0.44).toFixed(2)}"/>`;
+                    // Slightly larger than the cell so neighbouring dots touch
+                    // and the code stays scannable.
+                    normal += `<circle cx="${cx}" cy="${cy}" r="${(cellSize * 0.56).toFixed(2)}"/>`;
                     break;
                 }
                 case 'diamond': {
-                    const t = cellSize * 0.06;
-                    normal += `<path d="M${cx} ${y + t} L${x + cellSize - t} ${cy} L${cx} ${y + cellSize - t} L${x + t} ${cy} z"/>`;
+                    // A diamond covers only ~50% of its cell at best, so it is
+                    // enlarged to overlap neighbours and keep enough dark area.
+                    const d = cellSize * 0.72;
+                    normal += `<path d="M${cx} ${(cy - d).toFixed(2)} L${(cx + d).toFixed(2)} ${cy} L${cx} ${(cy + d).toFixed(2)} L${(cx - d).toFixed(2)} ${cy} z"/>`;
                     break;
                 }
                 case 'rounded': {
@@ -123,12 +131,15 @@ function buildSvgShapes(count, modules, cellSize, m, { moduleStyle, eyeStyle, fo
                     break;
                 }
                 default: {
-                    normal += `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}"/>`;
+                    normal += square;
                 }
             }
         }
     }
 
+    // Finder (eye) patterns are drawn as three nested shapes: a 7x7 outer
+    // ring in the eye colour, a 5x5 transparent (background) gap, and a 3x3
+    // centre. Exact geometry matters: any offset corrupts finder detection.
     let eyes = '';
     for (const [or, oc] of finderOrigins(count)) {
         const x = m + oc * cellSize;
@@ -139,15 +150,17 @@ function buildSvgShapes(count, modules, cellSize, m, { moduleStyle, eyeStyle, fo
         const cy = y + size / 2;
 
         if (eyeStyle === 'circle') {
-            eyes += `<circle cx="${cx}" cy="${cy}" r="${(3 * s).toFixed(2)}" fill="none" stroke="${eyeColor}" stroke-width="${s}"/>`;
+            eyes += `<circle cx="${cx}" cy="${cy}" r="${(3.5 * s).toFixed(2)}" fill="${eyeColor}"/>`;
+            eyes += `<circle cx="${cx}" cy="${cy}" r="${(2.5 * s).toFixed(2)}" fill="${backgroundColor}"/>`;
             eyes += `<circle cx="${cx}" cy="${cy}" r="${(1.5 * s).toFixed(2)}" fill="${eyeColor}"/>`;
         } else if (eyeStyle === 'rounded') {
-            const outer = 1.6 * s;
-            const inner = 0.8 * s;
-            eyes += `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${outer.toFixed(2)}" ry="${outer.toFixed(2)}" fill="none" stroke="${eyeColor}" stroke-width="${s}"/>`;
-            eyes += `<rect x="${x + 2 * s}" y="${y + 2 * s}" width="${3 * s}" height="${3 * s}" rx="${inner.toFixed(2)}" ry="${inner.toFixed(2)}" fill="${eyeColor}"/>`;
+            const rx = (1.5 * s).toFixed(2);
+            eyes += `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${rx}" ry="${rx}" fill="${eyeColor}"/>`;
+            eyes += `<rect x="${x + s}" y="${y + s}" width="${5 * s}" height="${5 * s}" rx="${rx}" ry="${rx}" fill="${backgroundColor}"/>`;
+            eyes += `<rect x="${x + 2 * s}" y="${y + 2 * s}" width="${3 * s}" height="${3 * s}" rx="${(0.75 * s).toFixed(2)}" ry="${(0.75 * s).toFixed(2)}" fill="${eyeColor}"/>`;
         } else {
-            eyes += `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${eyeColor}" stroke-width="${s}"/>`;
+            eyes += `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="${eyeColor}"/>`;
+            eyes += `<rect x="${x + s}" y="${y + s}" width="${5 * s}" height="${5 * s}" fill="${backgroundColor}"/>`;
             eyes += `<rect x="${x + 2 * s}" y="${y + 2 * s}" width="${3 * s}" height="${3 * s}" fill="${eyeColor}"/>`;
         }
     }
@@ -184,9 +197,8 @@ function qrSvgInner(text, options = {}) {
     const { normal, eyes } = buildSvgShapes(count, modules, cellSize, m, {
         moduleStyle,
         eyeStyle,
-        foregroundColor: safeForeground,
+        backgroundColor,
         eyeColor: safeEye,
-        logo,
     });
 
     let inner = `<rect x="0" y="0" width="${size}" height="${size}" fill="${backgroundColor}"/>`;
@@ -359,9 +371,9 @@ export function qrMatrixRgba(text, options = {}) {
         const ny = dy - (half - 0.5);
         switch (moduleStyle) {
             case 'dots':
-                return Math.hypot(nx, ny) <= cell * 0.46;
+                return Math.hypot(nx, ny) <= cell * 0.56;
             case 'diamond':
-                return Math.abs(nx) + Math.abs(ny) <= cell * 0.82;
+                return Math.abs(nx) + Math.abs(ny) <= cell * 0.72;
             case 'rounded': {
                 const r = cell * 0.32;
                 const ax = Math.abs(nx);
