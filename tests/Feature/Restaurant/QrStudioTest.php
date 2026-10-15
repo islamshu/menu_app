@@ -62,6 +62,8 @@ class QrStudioTest extends TestCase
         $this->actingAsRestaurantMember($restaurant, RestaurantRole::Staff);
 
         $this->get(route('qr.edit'))->assertForbidden();
+        $this->get(route('qr.preview', $this->validPayload()))->assertForbidden();
+        $this->get(route('qr.download', $this->validPayload()))->assertForbidden();
         $this->put(route('qr.update'), $this->validPayload())->assertForbidden();
         $this->post(route('qr.publish'), $this->validPayload())->assertForbidden();
     }
@@ -77,13 +79,14 @@ class QrStudioTest extends TestCase
         $this->actingAsRestaurantMember($restaurant);
 
         $this->put(route('qr.update'), $this->validPayload([
-            'module_style' => 'dots',
+            'quiet_zone' => 6,
             'foreground_color' => '#123456',
         ]))->assertSessionHas('success');
 
         $qr = $restaurant->qrCode()->first();
         $this->assertNotNull($qr);
-        $this->assertSame('dots', $qr->draft['module_style']);
+        $this->assertSame(6, $qr->draft['quiet_zone']);
+        $this->assertSame('#123456', $qr->draft['foreground_color']);
         $this->assertNull($qr->published);
     }
 
@@ -97,9 +100,6 @@ class QrStudioTest extends TestCase
 
         $this->post(route('qr.publish'), $this->validPayload([
             'preset_key' => 'atelier',
-            'module_style' => 'square',
-            'eye_style' => 'square',
-            'frame_style' => 'label',
             'error_level' => 'M',
         ]))->assertSessionHas('success');
 
@@ -131,14 +131,14 @@ class QrStudioTest extends TestCase
         ]))->assertSessionHasErrors('foreground_color');
     }
 
-    public function test_unknown_styles_rejected(): void
+    public function test_unknown_preset_rejected(): void
     {
         $restaurant = Restaurant::factory()->create();
         $this->actingAsRestaurantMember($restaurant);
 
         $this->put(route('qr.update'), $this->validPayload([
-            'module_style' => 'hexagons',
-        ]))->assertSessionHasErrors('module_style');
+            'preset_key' => 'not-a-preset',
+        ]))->assertSessionHasErrors('preset_key');
     }
 
     public function test_quiet_zone_bounds(): void
@@ -181,14 +181,52 @@ class QrStudioTest extends TestCase
         ]))->assertSessionHasErrors('logo_ratio');
     }
 
-    public function test_frame_label_max_length(): void
+    public function test_preview_returns_png(): void
     {
         $restaurant = Restaurant::factory()->create();
         $this->actingAsRestaurantMember($restaurant);
 
-        $this->put(route('qr.update'), $this->validPayload([
-            'frame_label' => str_repeat('a', 61),
-        ]))->assertSessionHasErrors('frame_label');
+        $response = $this->get(route('qr.preview', $this->validPayload()));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'image/png');
+        $this->assertStringStartsWith("\x89PNG", $response->baseResponse->getContent());
+    }
+
+    public function test_download_png_is_attachment(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $this->actingAsRestaurantMember($restaurant);
+
+        $response = $this->get(route('qr.download', $this->validPayload()));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'image/png');
+        $this->assertStringContainsString('attachment', $response->headers->get('content-disposition'));
+    }
+
+    public function test_download_svg_is_attachment(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $this->actingAsRestaurantMember($restaurant);
+
+        $response = $this->get(route('qr.download', array_merge($this->validPayload(), ['format' => 'svg'])));
+
+        $response->assertOk();
+        $this->assertStringContainsString('image/svg+xml', $response->headers->get('content-type'));
+        $this->assertStringContainsString('attachment', $response->headers->get('content-disposition'));
+    }
+
+    public function test_preview_rejects_invalid_settings(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $this->actingAsRestaurantMember($restaurant);
+
+        $response = $this->get(route('qr.preview', $this->validPayload([
+            'foreground_color' => 'red',
+        ])));
+
+        $response->assertSessionHasErrors('foreground_color');
     }
 
     public function test_only_known_keys_persisted(): void

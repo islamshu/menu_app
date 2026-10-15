@@ -11,6 +11,8 @@ use App\Models\Restaurant;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\ImageManager;
+use App\Services\Qr\QrImage;
+use App\Services\Qr\QrSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -37,7 +39,11 @@ class RestaurantController extends Controller
         ['code' => 'TRY', 'label' => 'ليرة تركية (₺)'],
     ];
 
-    public function __construct(private readonly ImageManager $images) {}
+    public function __construct(
+        private readonly ImageManager $images,
+        private readonly QrSettings $qrSettings,
+        private readonly QrImage $qrImage,
+    ) {}
 
     /**
      * Paginated, filterable list of every tenant on the platform.
@@ -165,6 +171,7 @@ class RestaurantController extends Controller
                 'created_at' => $restaurant->created_at?->toDateString(),
                 'active_plan' => $restaurant->activeSubscription?->plan?->name,
                 'menu_url' => route('menu.show', $restaurant->slug),
+                'qr_image' => $this->qrDataUri($restaurant),
             ],
             'members' => $members,
             'subscriptions' => $subscriptions,
@@ -174,6 +181,22 @@ class RestaurantController extends Controller
                 ->get(['id', 'name'])
                 ->map(fn ($plan) => ['id' => $plan->id, 'name' => $plan->name]),
         ]);
+    }
+
+    /**
+     * Render the restaurant's published QR settings as a PNG data URI for the
+     * admin profile widget.
+     */
+    private function qrDataUri(Restaurant $restaurant): string
+    {
+        return $this->qrImage
+            ->png(
+                route('menu.show', $restaurant->slug),
+                $this->qrSettings->resolve($restaurant),
+                $this->qrImage->logoPath($restaurant->logo),
+                (int) config('qr.render.preview_size', 512),
+            )
+            ->getDataUri();
     }
 
     /**

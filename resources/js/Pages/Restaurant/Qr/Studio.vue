@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import Badge from '@/Components/UI/Badge.vue';
 import Button from '@/Components/UI/Button.vue';
@@ -13,7 +13,7 @@ import Select from '@/Components/UI/Select.vue';
 import TextInput from '@/Components/UI/TextInput.vue';
 import RestaurantLayout from '@/Layouts/RestaurantLayout.vue';
 import QrPreview from '@/Components/Qr/QrPreview.vue';
-import { qrArtworkSvg, downloadDataUrl, downloadTextFile, imageToDataUrl, printQrCode, rasterizeSvgToPng } from '@/Support/qr';
+import { printQrImage } from '@/Support/qr';
 import { useToasts } from '@/Composables/useToasts';
 import { contrastRatio, hexToRgb } from '@/Support/branding';
 
@@ -30,61 +30,38 @@ const props = defineProps({
 const KEYS = [
     'preset_key',
     'error_level',
-    'module_style',
-    'eye_style',
-    'frame_style',
     'quiet_zone',
     'foreground_color',
     'background_color',
-    'eye_color',
-    'frame_label',
     'logo_enabled',
     'logo_ratio',
 ];
 
-const { success, error } = useToasts();
+const { success } = useToasts();
 
 const form = useForm({
     preset_key: props.draft.preset_key || 'noir-luxe',
     error_level: props.draft.error_level || 'Q',
-    module_style: props.draft.module_style || 'rounded',
-    eye_style: props.draft.eye_style || 'rounded',
-    frame_style: props.draft.frame_style || 'card',
     quiet_zone: props.draft.quiet_zone ?? 4,
     foreground_color: props.draft.foreground_color || '#000000',
     background_color: props.draft.background_color || '#ffffff',
-    eye_color: props.draft.eye_color || props.draft.foreground_color || '#000000',
-    frame_label: props.draft.frame_label || props.restaurant.name || '',
     logo_enabled: props.draft.logo_enabled || false,
     logo_ratio: props.draft.logo_ratio || 0.12,
 });
 
 const confirmDiscard = ref(false);
 const discarding = ref(false);
-const exporting = ref(false);
 
-const selectedPreset = computed(() => props.presets.find((p) => p.key === form.preset_key) || props.presets[0]);
-
-const logoDataUrl = ref('');
-
-watch(
-    () => [form.logo_enabled, props.restaurant.logo],
-    async ([enabled]) => {
-        if (enabled && props.restaurant.logo) {
-            logoDataUrl.value = await imageToDataUrl(props.restaurant.logo);
-        } else {
-            logoDataUrl.value = '';
-        }
-    },
-    { immediate: true },
-);
-
-const artwork = computed(() => {
-    return qrArtworkSvg(props.menu_url, form.data(), {
-        label: form.frame_label || props.restaurant.name,
-        logo: form.logo_enabled ? logoDataUrl.value : '',
+const queryString = computed(() => {
+    const params = new URLSearchParams();
+    KEYS.forEach((key) => {
+        const value = form[key];
+        params.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value ?? ''));
     });
+    return params.toString();
 });
+
+const imageUrl = computed(() => `${route('qr.preview')}?${queryString.value}`);
 
 const MIN_QR_CONTRAST = 3.5;
 
@@ -93,18 +70,6 @@ const contrastWarn = computed(() => {
     const bg = hexToRgb(form.background_color);
     if (!fg || !bg) return false;
     return contrastRatio(fg, bg) < MIN_QR_CONTRAST;
-});
-
-const eyeContrastWarn = computed(() => {
-    const eye = hexToRgb(form.eye_color);
-    const bg = hexToRgb(form.background_color);
-    if (!eye || !bg) return false;
-    return contrastRatio(eye, bg) < MIN_QR_CONTRAST;
-});
-
-const filename = computed(() => {
-    const slug = (props.restaurant.name || 'qr').trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').toLowerCase();
-    return `qr-${slug || 'menu'}`;
 });
 
 const applyPreset = (key) => {
@@ -133,31 +98,24 @@ const discard = () => {
     });
 };
 
-const downloadPng = async () => {
-    exporting.value = true;
-    try {
-        const dataUrl = await rasterizeSvgToPng(artwork.value, 1024);
-        downloadDataUrl(dataUrl, `${filename.value}.png`);
-    } catch (e) {
-        error('فشل في تصدير PNG');
-    } finally {
-        exporting.value = false;
-    }
-};
-
-const downloadSvg = () => {
-    downloadTextFile(artwork.value, `${filename.value}.svg`, 'image/svg+xml');
+const download = (format) => {
+    const link = document.createElement('a');
+    link.href = `${route('qr.download')}?${queryString.value}&format=${format}`;
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 const print = () => {
-    printQrCode(artwork.value, { title: props.restaurant.name, subtitle: props.menu_url });
+    printQrImage(imageUrl.value, { title: props.restaurant.name, subtitle: props.menu_url });
 };
 </script>
 
 <template>
     <Head title="استوديو رمز QR" />
     <RestaurantLayout>
-        <PageHeader title="استوديو رمز QR" subtitle="تخصيص رمز QR لقائمة المطعم: الألوان، شكل الوحدات، عين الرمز، الإطار، والخطأ التصحيحي">
+        <PageHeader title="استوديو رمز QR" subtitle="تخصيص رمز QR لقائمة المطعم: الألوان، مستوى تصحيح الخطأ، مساحة الهامش، وشعار المطعم">
             <template #actions>
                 <Badge v-if="has_draft" variant="warning" dot>مسودة غير منشورة</Badge>
                 <a :href="menu_url" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
@@ -170,11 +128,11 @@ const print = () => {
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,380px)_1fr]">
             <div class="space-y-6">
                 <Card title="المعاينة الحيّة">
-                    <QrPreview :svg="artwork" :url="menu_url" :name="restaurant.name" />
+                    <QrPreview :image="imageUrl" :url="menu_url" :name="restaurant.name" />
                     <div class="mt-4 flex flex-wrap gap-2">
                         <Button variant="secondary" size="sm" @click="print">طباعة</Button>
-                        <Button variant="outline" size="sm" @click="downloadSvg">تحميل SVG</Button>
-                        <Button variant="outline" size="sm" :loading="exporting" @click="downloadPng">تحميل PNG</Button>
+                        <Button variant="outline" size="sm" @click="download('svg')">تحميل SVG</Button>
+                        <Button variant="outline" size="sm" @click="download('png')">تحميل PNG</Button>
                     </div>
                 </Card>
 
@@ -198,29 +156,9 @@ const print = () => {
                             <InputError class="mt-1" :message="form.errors.error_level" />
                         </div>
                         <div>
-                            <InputLabel value="شكل وحدات الرمز (Module Style)" />
-                            <Select v-model="form.module_style" class="mt-2 w-full" :options="options.module_styles" />
-                            <InputError class="mt-1" :message="form.errors.module_style" />
-                        </div>
-                        <div>
-                            <InputLabel value="شكل عين الرمز (Eye Style)" />
-                            <Select v-model="form.eye_style" class="mt-2 w-full" :options="options.eye_styles" />
-                            <InputError class="mt-1" :message="form.errors.eye_style" />
-                        </div>
-                        <div>
-                            <InputLabel value="نمط الإطار (Frame Style)" />
-                            <Select v-model="form.frame_style" class="mt-2 w-full" :options="options.frame_styles" />
-                            <InputError class="mt-1" :message="form.errors.frame_style" />
-                        </div>
-                        <div>
                             <InputLabel value="مساحة هادئة (Quiet Zone)" />
                             <TextInput type="number" min="0" max="8" v-model="form.quiet_zone" dir="ltr" />
                             <InputError class="mt-1" :message="form.errors.quiet_zone" />
-                        </div>
-                        <div v-if="form.frame_style !== 'none'">
-                            <InputLabel value="نص الإطار (Frame Label)" />
-                            <TextInput v-model="form.frame_label" maxlength="60" />
-                            <InputError class="mt-1" :message="form.errors.frame_label" />
                         </div>
                     </div>
                 </Card>
@@ -236,14 +174,6 @@ const print = () => {
                             <InputLabel value="لون الخلفية (Background)" />
                             <div class="mt-2 flex gap-2"><input type="color" v-model="form.background_color" class="h-9 w-12 rounded border" /><TextInput v-model="form.background_color" dir="ltr" class="flex-1 font-mono uppercase" /></div>
                             <InputError class="mt-1" :message="form.errors.background_color" />
-                        </div>
-                        <div>
-                            <InputLabel value="لون عين الرمز (Eye)" />
-                            <div class="mt-2 flex gap-2"><input type="color" v-model="form.eye_color" class="h-9 w-12 rounded border" /><TextInput v-model="form.eye_color" dir="ltr" class="flex-1 font-mono uppercase" /></div>
-                            <InputError class="mt-1" :message="form.errors.eye_color" />
-                            <p v-if="eyeContrastWarn" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                لون العين فاتح جداً؛ سيتم استخدام لون الوحدات للعين تلقائياً لضمان قراءة الرمز.
-                            </p>
                         </div>
                     </div>
                     <Badge v-if="contrastWarn" variant="warning" class="mt-3">تباين منخفض بين لون الوحدات وخلفية الرمز قد يؤثر على قراءة بعض أجهزة المسح</Badge>
@@ -281,6 +211,6 @@ const print = () => {
             </div>
         </div>
 
-        <ConfirmDialog :show="confirmDiscard" title="تجاهل المسودة" message="سيتم حذف التغييرات غير المنشورة والعودة إلى الإعدادات المنشورة حالياً." confirm-label="تجاهل المسودة" :processing="discarding" @confirm="discard" @close="confirmDiscard = false" />
+        <ConfirmDialog :show="confirmDiscard" title="تجاهل المسودة" message="سيتم حذف المسودة غير المنشورة والعودة إلى الإعدادات المنشورة." :processing="discarding" confirm-label="تجاهل المسودة" @confirm="discard" @close="confirmDiscard = false" />
     </RestaurantLayout>
 </template>

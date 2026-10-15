@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import Button from '@/Components/UI/Button.vue';
 import Icon from '@/Components/UI/Icon.vue';
-import { downloadDataUrl, downloadTextFile, printQrCode, qrPngDataUrl, qrSvg } from '@/Support/qr';
+import { downloadDataUrl, printQrImage } from '@/Support/qr';
 
 const props = defineProps({
     url: {
@@ -13,16 +13,11 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    image: {
+        type: String,
+        default: '',
+    },
 });
-
-const svg = computed(() =>
-    qrSvg(props.url, {
-        cellSize: 8,
-        margin: 4,
-        alt: `QR ${props.name}`,
-        title: props.name,
-    }),
-);
 
 const filename = computed(() => {
     const slug = (props.name || 'menu')
@@ -35,15 +30,11 @@ const filename = computed(() => {
 });
 
 const downloadPng = () => {
-    downloadDataUrl(qrPngDataUrl(props.url, { scale: 12, margin: 4 }), `${filename.value}.png`);
-};
-
-const downloadSvg = () => {
-    downloadTextFile(svg.value, `${filename.value}.svg`, 'image/svg+xml');
+    downloadDataUrl(props.image, `${filename.value}.png`);
 };
 
 const print = () => {
-    printQrCode(svg.value, { title: props.name, subtitle: props.url });
+    printQrImage(props.image, { title: props.name, subtitle: props.url });
 };
 </script>
 
@@ -52,7 +43,7 @@ const print = () => {
         <div
             class="shrink-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700"
         >
-            <div class="h-40 w-40 [&_svg]:h-full [&_svg]:w-full" v-html="svg" />
+            <img v-if="image" :src="image" :alt="`QR ${name}`" class="h-40 w-40" />
         </div>
 
         <div class="min-w-0 flex-1">
@@ -68,17 +59,11 @@ const print = () => {
                     </template>
                     طباعة
                 </Button>
-                <Button variant="outline" size="sm" @click="downloadPng">
+                <Button variant="outline" size="sm" :disabled="!image" @click="downloadPng">
                     <template #icon>
                         <Icon name="download" class="h-3.5 w-3.5" />
                     </template>
                     تحميل PNG
-                </Button>
-                <Button variant="outline" size="sm" @click="downloadSvg">
-                    <template #icon>
-                        <Icon name="download" class="h-3.5 w-3.5" />
-                    </template>
-                    تحميل SVG
                 </Button>
             </div>
         </div>

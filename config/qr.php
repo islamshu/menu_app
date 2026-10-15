@@ -1,17 +1,29 @@
 <?php
 
 return [
+
     /*
     |--------------------------------------------------------------------------
-    | QR presets
+    | Default preset
     |--------------------------------------------------------------------------
     |
-    | Five premium presets that mirror the menu themes. Backgrounds are kept
-    | light and modules dark for maximum decoder compatibility (dark-on-light).
+    | The preset applied to restaurants that never customised their QR code.
     |
     */
 
     'default_preset' => 'noir-luxe',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Presets
+    |--------------------------------------------------------------------------
+    |
+    | Five premium presets that mirror the menu themes. Backgrounds are kept
+    | light and modules dark for maximum decoder compatibility (dark-on-light).
+    | Only settings supported by the server-side renderer (endroid/qr-code)
+    | are exposed: colours, error-correction level, quiet zone and logo.
+    |
+    */
 
     'presets' => [
         'noir-luxe' => [
@@ -20,32 +32,22 @@ return [
             'defaults' => [
                 'preset_key' => 'noir-luxe',
                 'error_level' => 'Q',
-                'module_style' => 'rounded',
-                'eye_style' => 'rounded',
-                'frame_style' => 'card',
                 'quiet_zone' => 4,
                 'foreground_color' => '#0c0c0f',
                 'background_color' => '#f4f1ea',
-                'eye_color' => '#6b5016',
-                'frame_label' => '',
                 'logo_enabled' => false,
                 'logo_ratio' => 0.12,
             ],
         ],
         'atelier' => [
-            'label' => ['ar' => 'أتيليه', 'en' => 'Atelier'],
-            'description' => ['ar' => 'طابع تحريري أنيق', 'en' => 'Elegant editorial'],
+            'label' => ['ar' => 'أتليه', 'en' => 'Atelier'],
+            'description' => ['ar' => 'طابع أندلسي دافئ', 'en' => 'Warm editorial'],
             'defaults' => [
                 'preset_key' => 'atelier',
-                'error_level' => 'M',
-                'module_style' => 'square',
-                'eye_style' => 'square',
-                'frame_style' => 'label',
+                'error_level' => 'Q',
                 'quiet_zone' => 4,
                 'foreground_color' => '#2c2622',
                 'background_color' => '#f7f1e7',
-                'eye_color' => '#b4552d',
-                'frame_label' => '',
                 'logo_enabled' => false,
                 'logo_ratio' => 0.12,
             ],
@@ -56,14 +58,9 @@ return [
             'defaults' => [
                 'preset_key' => 'pulse',
                 'error_level' => 'H',
-                'module_style' => 'dots',
-                'eye_style' => 'circle',
-                'frame_style' => 'card',
                 'quiet_zone' => 4,
                 'foreground_color' => '#14161d',
                 'background_color' => '#ffffff',
-                'eye_color' => '#e03a10',
-                'frame_label' => '',
                 'logo_enabled' => false,
                 'logo_ratio' => 0.12,
             ],
@@ -74,14 +71,9 @@ return [
             'defaults' => [
                 'preset_key' => 'mosaic',
                 'error_level' => 'Q',
-                'module_style' => 'rounded',
-                'eye_style' => 'rounded',
-                'frame_style' => 'label',
                 'quiet_zone' => 4,
                 'foreground_color' => '#2b2118',
                 'background_color' => '#f4ead7',
-                'eye_color' => '#0f6b5c',
-                'frame_label' => '',
                 'logo_enabled' => false,
                 'logo_ratio' => 0.12,
             ],
@@ -92,19 +84,20 @@ return [
             'defaults' => [
                 'preset_key' => 'neon',
                 'error_level' => 'H',
-                'module_style' => 'diamond',
-                'eye_style' => 'circle',
-                'frame_style' => 'card',
                 'quiet_zone' => 4,
                 'foreground_color' => '#07070c',
                 'background_color' => '#ffffff',
-                'eye_color' => '#d81b74',
-                'frame_label' => '',
                 'logo_enabled' => false,
                 'logo_ratio' => 0.12,
             ],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Error correction levels
+    |--------------------------------------------------------------------------
+    */
 
     'error_levels' => [
         'L' => ['label' => 'منخفض — ٧٪', 'recovery' => 0.07],
@@ -113,25 +106,11 @@ return [
         'H' => ['label' => 'أقصى — ٣٠٪', 'recovery' => 0.30],
     ],
 
-    'module_styles' => [
-        'square' => ['label' => 'مربّعات'],
-        'rounded' => ['label' => 'زوايا ناعمة'],
-        'dots' => ['label' => 'نقاط'],
-        'diamond' => ['label' => 'معينات'],
-    ],
-
-    'eye_styles' => [
-        'square' => ['label' => 'مربّعة'],
-        'rounded' => ['label' => 'دائرية الزوايا'],
-        'circle' => ['label' => 'دائريّة'],
-    ],
-
-    'frame_styles' => [
-        'none' => ['label' => 'بدون إطار'],
-        'label' => ['label' => 'اسم أسفل الرمز'],
-        'card' => ['label' => 'بطاقة'],
-        'ticket' => ['label' => 'تذكرة'],
-    ],
+    /*
+    |--------------------------------------------------------------------------
+    | Export sizes (pixels)
+    |--------------------------------------------------------------------------
+    */
 
     'sizes' => [
         'small' => 256,
@@ -139,6 +118,29 @@ return [
         'large' => 1024,
         'print' => 2048,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Render tuning
+    |--------------------------------------------------------------------------
+    */
+
+    'render' => [
+        'preview_size' => 512,
+        'download_size' => 1024,
+        'max_size' => 2048,
+        'min_size' => 128,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Logo constraints
+    |--------------------------------------------------------------------------
+    |
+    | The logo is expressed as a ratio of the QR width. Keeping it below the
+    | maximum keeps a logo-bearing code readable by phone cameras.
+    |
+    */
 
     'logo' => [
         'max_ratio' => 0.15,
@@ -148,14 +150,9 @@ return [
     'defaults' => [
         'preset_key' => 'noir-luxe',
         'error_level' => 'Q',
-        'module_style' => 'rounded',
-        'eye_style' => 'rounded',
-        'frame_style' => 'card',
         'quiet_zone' => 4,
         'foreground_color' => '#0c0c0f',
         'background_color' => '#f4f1ea',
-        'eye_color' => '#6b5016',
-        'frame_label' => '',
         'logo_enabled' => false,
         'logo_ratio' => 0.12,
     ],

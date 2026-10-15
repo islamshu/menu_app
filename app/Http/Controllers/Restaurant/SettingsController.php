@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Restaurant;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Restaurant\Concerns\ResolvesActiveRestaurant;
 use App\Http\Requests\Restaurant\UpdateSettingsRequest;
+use App\Models\Restaurant;
 use App\Services\ImageManager;
+use App\Services\Qr\QrImage;
+use App\Services\Qr\QrSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -32,7 +35,11 @@ class SettingsController extends Controller
         ['code' => 'TRY', 'label' => 'ليرة تركية (₺)'],
     ];
 
-    public function __construct(private readonly ImageManager $images) {}
+    public function __construct(
+        private readonly ImageManager $images,
+        private readonly QrSettings $qrSettings,
+        private readonly QrImage $qrImage,
+    ) {}
 
     /**
      * Show the restaurant settings form (owner/manager only).
@@ -59,6 +66,7 @@ class SettingsController extends Controller
                 'cover_image' => $this->images->url($restaurant->cover_image),
             ],
             'menu_url' => route('menu.show', $restaurant->slug),
+            'qr_image' => $this->qrDataUri($restaurant),
             'currencies' => self::CURRENCIES,
             'timezones' => timezone_identifiers_list(),
             'locales' => collect(config('locales.supported'))
@@ -110,5 +118,23 @@ class SettingsController extends Controller
         ])->save();
 
         return back()->with('success', 'تم حفظ الإعدادات بنجاح.');
+    }
+
+    /**
+     * Render the published QR settings as an inline PNG data URI for the
+     * settings-screen widget (rendered server-side, no client QR engine).
+     */
+    private function qrDataUri(Restaurant $restaurant): string
+    {
+        $settings = $this->qrSettings->resolve($restaurant);
+
+        return $this->qrImage
+            ->png(
+                route('menu.show', $restaurant->slug),
+                $settings,
+                $this->qrImage->logoPath($restaurant->logo),
+                (int) config('qr.render.preview_size', 512),
+            )
+            ->getDataUri();
     }
 }

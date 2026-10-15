@@ -3,23 +3,45 @@
 namespace App\Services\Qr;
 
 use App\Models\Restaurant;
+use Illuminate\Validation\Rule;
 
 class QrSettings
 {
     public const KEYS = [
         'preset_key',
         'error_level',
-        'module_style',
-        'eye_style',
-        'frame_style',
         'quiet_zone',
         'foreground_color',
         'background_color',
-        'eye_color',
-        'frame_label',
         'logo_enabled',
         'logo_ratio',
     ];
+
+    /**
+     * Validation rules shared by the studio form request and the render
+     * endpoints (which receive the settings as query string values).
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public static function rules(): array
+    {
+        $hex = ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'];
+
+        return [
+            'preset_key' => ['required', 'string', Rule::in(array_keys(config('qr.presets', [])))],
+            'error_level' => ['required', 'string', Rule::in(array_keys(config('qr.error_levels', [])))],
+            'quiet_zone' => ['required', 'integer', 'min:0', 'max:8'],
+            'foreground_color' => $hex,
+            'background_color' => $hex,
+            'logo_enabled' => ['boolean'],
+            'logo_ratio' => [
+                'required',
+                'numeric',
+                'min:'.config('qr.logo.min_ratio', 0.08),
+                'max:'.config('qr.logo.max_ratio', 0.15),
+            ],
+        ];
+    }
 
     /**
      * @return array<string, array<string, mixed>>
@@ -150,28 +172,8 @@ class QrSettings
                 ->map(fn ($data, $k) => array_merge(['value' => $k], $data))
                 ->values()
                 ->all(),
-            'module_styles' => $this->labelled(config('qr.module_styles', [])),
-            'eye_styles' => $this->labelled(config('qr.eye_styles', [])),
-            'frame_styles' => $this->labelled(config('qr.frame_styles', [])),
             'sizes' => config('qr.sizes', []),
             'logo' => config('qr.logo', []),
         ];
-    }
-
-    /**
-     * @param  array<string, array<string, mixed>>  $items
-     * @return array<int, array{value: string, label: array|string}>
-     */
-    protected function labelled(array $items): array
-    {
-        $collection = collect($items);
-
-        return $collection
-            ->map(fn ($item, $key) => [
-                'value' => $key,
-                'label' => $item['label'] ?? $key,
-            ])
-            ->values()
-            ->all();
     }
 }

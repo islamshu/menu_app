@@ -34,6 +34,8 @@ Route::delete('branding/draft', [BrandingController::class, 'discardDraft'])->na
 Route::post('branding/palette', [BrandingController::class, 'extractPalette'])->name('branding.palette');
 
 Route::get('qr-studio', [QrStudioController::class, 'edit'])->name('qr.edit');
+Route::get('qr-studio/preview', [QrStudioController::class, 'preview'])->name('qr.preview');
+Route::get('qr-studio/download', [QrStudioController::class, 'download'])->name('qr.download');
 Route::put('qr-studio', [QrStudioController::class, 'update'])->name('qr.update');
 Route::post('qr-studio/publish', [QrStudioController::class, 'publish'])->name('qr.publish');
 Route::delete('qr-studio/draft', [QrStudioController::class, 'discardDraft'])->name('qr.discard');
