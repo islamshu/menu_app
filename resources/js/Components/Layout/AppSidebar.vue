@@ -13,6 +13,7 @@ const items = [
     { route: 'categories.index', label: 'الأقسام', icon: 'folder', pattern: 'categories.*' },
     { route: 'items.index', label: 'الأصناف', icon: 'grid', pattern: 'items.*' },
     { route: 'branding.edit', label: 'الهوية البصرية', icon: 'sparkles', pattern: 'branding.*' },
+    { route: 'qr.edit', label: 'استوديو رمز QR', icon: 'qr-code', pattern: 'qr.*' },
     { route: 'settings.edit', label: 'الإعدادات', icon: 'cog', pattern: 'settings.*' },
 ];
 

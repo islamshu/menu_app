@@ -96,6 +96,14 @@ class Restaurant extends Model
         return $this->hasOne(RestaurantBranding::class);
     }
 
+    /**
+     * @return HasOne<RestaurantQrCode, $this>
+     */
+    public function qrCode(): HasOne
+    {
+        return $this->hasOne(RestaurantQrCode::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === RestaurantStatus::Active;

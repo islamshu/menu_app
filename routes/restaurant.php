@@ -4,6 +4,7 @@ use App\Http\Controllers\Restaurant\BrandingController;
 use App\Http\Controllers\Restaurant\CategoryController;
 use App\Http\Controllers\Restaurant\DashboardController;
 use App\Http\Controllers\Restaurant\MenuItemController;
+use App\Http\Controllers\Restaurant\QrStudioController;
 use App\Http\Controllers\Restaurant\RestaurantSwitchController;
 use App\Http\Controllers\Restaurant\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -31,3 +32,8 @@ Route::put('branding', [BrandingController::class, 'update'])->name('branding.up
 Route::post('branding/publish', [BrandingController::class, 'publish'])->name('branding.publish');
 Route::delete('branding/draft', [BrandingController::class, 'discardDraft'])->name('branding.discard');
 Route::post('branding/palette', [BrandingController::class, 'extractPalette'])->name('branding.palette');
+
+Route::get('qr-studio', [QrStudioController::class, 'edit'])->name('qr.edit');
+Route::put('qr-studio', [QrStudioController::class, 'update'])->name('qr.update');
+Route::post('qr-studio/publish', [QrStudioController::class, 'publish'])->name('qr.publish');
+Route::delete('qr-studio/draft', [QrStudioController::class, 'discardDraft'])->name('qr.discard');

@@ -1,4 +1,5 @@
-import qrcode from './qrcode';
+import qrcode from './qrcode.js';
+import { buildMatrix, qrArtworkSvg, qrSvg as qrSvgStyled, rasterizeSvgToPng } from './qr-render.js';
 
 function encode(text, errorCorrection = 'M') {
     const qr = qrcode(0, errorCorrection);
@@ -7,13 +8,33 @@ function encode(text, errorCorrection = 'M') {
     return qr;
 }
 
-export function qrSvg(text, { cellSize = 8, margin = 4, alt = '', title = '' } = {}) {
-    return encode(text).createSvgTag({ cellSize, margin, alt, title, scalable: true });
+export function qrSvg(text, options = {}) {
+    if (options && (options.moduleStyle || options.module_style || options.eyeStyle || options.eye_style || options.foregroundColor)) {
+        const settings = {
+            error_level: options.errorLevel || options.error_level || 'M',
+            module_style: options.moduleStyle || options.module_style || 'square',
+            eye_style: options.eyeStyle || options.eye_style || 'square',
+            quiet_zone: options.quietZone || options.quiet_zone || options.marginModules || 4,
+            foreground_color: options.foregroundColor || options.foreground_color || '#000000',
+            background_color: options.backgroundColor || options.background_color || '#ffffff',
+            eye_color: options.eyeColor || options.eye_color || options.foregroundColor || '#000000',
+        };
+        return qrSvgStyled(text, settings);
+    }
+    return encode(text).createSvgTag({
+        cellSize: options.cellSize || 8,
+        margin: options.margin || 4,
+        alt: options.alt || '',
+        title: options.title || '',
+        scalable: true,
+    });
 }
 
-export function qrPngDataUrl(text, { scale = 12, margin = 4 } = {}) {
+export function qrPngDataUrl(text, options = {}) {
     const qr = encode(text);
     const count = qr.getModuleCount();
+    const scale = options.scale || 12;
+    const margin = options.margin || 4;
     const size = count * scale + margin * 2;
 
     const canvas = document.createElement('canvas');
@@ -68,8 +89,8 @@ export function printQrCode(svg, { title = '', subtitle = '' } = {}) {
             'body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:48px;display:flex;flex-direction:column;align-items:center;gap:18px;}' +
             'h1{font-size:24px;margin:0;text-align:center;}' +
             'p{margin:0;color:#64748b;font-size:14px;word-break:break-all;text-align:center;}' +
-            '.qr{width:340px;height:340px;}' +
-            '.qr svg{width:100%;height:100%;}' +
+            '.qr{max-width:90vw;display:flex;justify-content:center;}' +
+            '.qr svg{max-width:100%;height:auto;}' +
             '</style></head><body>' +
             `<h1>${safeTitle}</h1>` +
             `<div class="qr">${svg}</div>` +
@@ -81,3 +102,7 @@ export function printQrCode(svg, { title = '', subtitle = '' } = {}) {
     win.focus();
     setTimeout(() => win.print(), 350);
 }
+
+export { buildMatrix, qrArtworkSvg, rasterizeSvgToPng, qrSvgStyled };
+export { qrMatrixRgba } from './qr-render.js';
+export { encodeQr } from './qr-core.js';
