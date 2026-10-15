@@ -29,7 +29,7 @@ return [
                 'eye_color' => '#6b5016',
                 'frame_label' => '',
                 'logo_enabled' => false,
-                'logo_ratio' => 0.18,
+                'logo_ratio' => 0.12,
             ],
         ],
         'atelier' => [
@@ -47,7 +47,7 @@ return [
                 'eye_color' => '#b4552d',
                 'frame_label' => '',
                 'logo_enabled' => false,
-                'logo_ratio' => 0.16,
+                'logo_ratio' => 0.12,
             ],
         ],
         'pulse' => [
@@ -65,7 +65,7 @@ return [
                 'eye_color' => '#e03a10',
                 'frame_label' => '',
                 'logo_enabled' => false,
-                'logo_ratio' => 0.18,
+                'logo_ratio' => 0.12,
             ],
         ],
         'mosaic' => [
@@ -83,7 +83,7 @@ return [
                 'eye_color' => '#0f6b5c',
                 'frame_label' => '',
                 'logo_enabled' => false,
-                'logo_ratio' => 0.16,
+                'logo_ratio' => 0.12,
             ],
         ],
         'neon' => [
@@ -101,7 +101,7 @@ return [
                 'eye_color' => '#d81b74',
                 'frame_label' => '',
                 'logo_enabled' => false,
-                'logo_ratio' => 0.18,
+                'logo_ratio' => 0.12,
             ],
         ],
     ],
@@ -141,8 +141,8 @@ return [
     ],
 
     'logo' => [
-        'max_ratio' => 0.22,
-        'min_ratio' => 0.10,
+        'max_ratio' => 0.15,
+        'min_ratio' => 0.08,
     ],
 
     'defaults' => [
@@ -157,6 +157,6 @@ return [
         'eye_color' => '#6b5016',
         'frame_label' => '',
         'logo_enabled' => false,
-        'logo_ratio' => 0.18,
+        'logo_ratio' => 0.12,
     ],
 ];

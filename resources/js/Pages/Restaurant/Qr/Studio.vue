@@ -56,7 +56,7 @@ const form = useForm({
     eye_color: props.draft.eye_color || props.draft.foreground_color || '#000000',
     frame_label: props.draft.frame_label || props.restaurant.name || '',
     logo_enabled: props.draft.logo_enabled || false,
-    logo_ratio: props.draft.logo_ratio || 0.18,
+    logo_ratio: props.draft.logo_ratio || 0.12,
 });
 
 const confirmDiscard = ref(false);
@@ -264,7 +264,7 @@ const print = () => {
                         </div>
                         <div v-if="form.logo_enabled">
                             <InputLabel value="حجم الشعار (Logo Ratio)" />
-                            <TextInput type="number" min="0.1" max="0.22" step="0.01" v-model="form.logo_ratio" dir="ltr" />
+                            <TextInput type="number" min="0.08" max="0.15" step="0.01" v-model="form.logo_ratio" dir="ltr" />
                             <InputError class="mt-1" :message="form.errors.logo_ratio" />
                             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                 عند إدراج الشعار يتم رفع مستوى تصحيح الخطأ تلقائياً إلى الأقصى (H) لضمان قراءة الرمز.

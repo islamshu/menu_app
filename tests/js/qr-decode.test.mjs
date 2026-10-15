@@ -21,13 +21,13 @@ for (const preset of presets) {
   cases.push({
     name: `${preset.name}+logo`,
     data: logoData,
-    opts: { ...preset.opts, errorLevel: 'L', logo: '1', logoRatio: 0.22 },
+    opts: { ...preset.opts, errorLevel: 'L', logo: '1', logoRatio: 0.15 },
   });
 }
 
 cases.push(
   { name: 'low-contrast-eye-autocorrected', data, opts: { moduleStyle: 'rounded', eyeStyle: 'rounded', foregroundColor: '#0c0c0f', backgroundColor: '#f4f1ea', eyeColor: '#c8a349' } },
-  { name: 'logo-low-level', data: logoData, opts: { errorLevel: 'L', logo: '1', logoRatio: 0.22, moduleStyle: 'rounded', eyeStyle: 'rounded', eyeColor: '#c8a349' } },
+  { name: 'logo-low-level', data: logoData, opts: { errorLevel: 'L', logo: '1', logoRatio: 0.15, moduleStyle: 'rounded', eyeStyle: 'rounded', eyeColor: '#c8a349' } },
   { name: 'logo-max-ratio', data: logoData, opts: { errorLevel: 'L', logo: '1', logoRatio: 0.5, moduleStyle: 'dots', eyeStyle: 'circle', eyeColor: '#e03a10' } },
 );
 

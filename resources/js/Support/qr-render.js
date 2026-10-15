@@ -65,9 +65,11 @@ function finderOriginFor(count, r, c) {
     return null;
 }
 
-const LOGO_MIN_RATIO = 0.1;
-const LOGO_MAX_RATIO = 0.22;
+const LOGO_MIN_RATIO = 0.08;
+const LOGO_MAX_RATIO = 0.15;
 const LOGO_SAFE_LEVEL = 'H';
+// Clearance (in modules) kept between the logo and the nearest QR module.
+const LOGO_PAD_MODULES = 1;
 
 /**
  * A centre logo covers part of the QR, so it can only be recovered when the
@@ -194,7 +196,7 @@ function qrSvgInner(text, options = {}) {
     if (logo) {
         const logoSize = size * policy.logoRatio;
         const logoX = (size - logoSize) / 2;
-        const pad = cellSize * 0.6;
+        const pad = cellSize * LOGO_PAD_MODULES;
         inner += `<rect x="${(logoX - pad).toFixed(2)}" y="${(logoX - pad).toFixed(2)}" width="${(logoSize + pad * 2).toFixed(2)}" height="${(logoSize + pad * 2).toFixed(2)}" rx="${(pad).toFixed(2)}" fill="${backgroundColor}"/>`;
         inner += `<image x="${logoX.toFixed(2)}" y="${logoX.toFixed(2)}" width="${logoSize.toFixed(2)}" height="${logoSize.toFixed(2)}" preserveAspectRatio="xMidYMid meet" href="${logo}"/>`;
     }
@@ -395,7 +397,7 @@ export function qrMatrixRgba(text, options = {}) {
     if (logo) {
         const logoSize = Math.round(width * policy.logoRatio);
         const start = Math.round((width - logoSize) / 2);
-        const pad = Math.round(cell * 0.6);
+        const pad = Math.round(cell * LOGO_PAD_MODULES);
         const bgCol = bg;
         for (let y = start - pad; y < start + logoSize + pad; y++) {
             for (let x = start - pad; x < start + logoSize + pad; x++) {
