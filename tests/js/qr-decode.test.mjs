@@ -1,13 +1,35 @@
 import { qrMatrixRgba, qrSvg } from '../../resources/js/Support/qr-render.js';
 import jsQR from 'jsqr';
 
-const cases = [
-  { name: 'default', data: 'https://example.com/m/demo-restaurant' },
-  { name: 'atelier', data: 'https://example.com/m/demo-restaurant', opts: { moduleStyle: 'square', eyeStyle: 'square', foregroundColor: '#2c2622', backgroundColor: '#f7f1e7', eyeColor: '#b4552d' } },
-  { name: 'pulse', data: 'https://example.com/m/demo-restaurant', opts: { moduleStyle: 'dots', eyeStyle: 'circle', foregroundColor: '#14161d', backgroundColor: '#ffffff', eyeColor: '#ff4d1c' } },
-  { name: 'mosaic', data: 'https://example.com/m/demo-restaurant', opts: { moduleStyle: 'rounded', eyeStyle: 'rounded', foregroundColor: '#2b2118', backgroundColor: '#f4ead7', eyeColor: '#0f6b5c' } },
-  { name: 'neon', data: 'https://example.com/m/demo-restaurant', opts: { moduleStyle: 'diamond', eyeStyle: 'circle', foregroundColor: '#07070c', backgroundColor: '#ffffff', eyeColor: '#ff2d95' } },
+const data = 'https://example.com/m/demo-restaurant';
+const logoData = 'https://example.com/m/logo-check';
+
+// Mirrors config/qr.php so the shipped presets are guaranteed to decode.
+const presets = [
+  { name: 'noir-luxe', opts: { moduleStyle: 'rounded', eyeStyle: 'rounded', foregroundColor: '#0c0c0f', backgroundColor: '#f4f1ea', eyeColor: '#6b5016' } },
+  { name: 'atelier', opts: { moduleStyle: 'square', eyeStyle: 'square', foregroundColor: '#2c2622', backgroundColor: '#f7f1e7', eyeColor: '#b4552d' } },
+  { name: 'pulse', opts: { moduleStyle: 'dots', eyeStyle: 'circle', foregroundColor: '#14161d', backgroundColor: '#ffffff', eyeColor: '#e03a10' } },
+  { name: 'mosaic', opts: { moduleStyle: 'rounded', eyeStyle: 'rounded', foregroundColor: '#2b2118', backgroundColor: '#f4ead7', eyeColor: '#0f6b5c' } },
+  { name: 'neon', opts: { moduleStyle: 'diamond', eyeStyle: 'circle', foregroundColor: '#07070c', backgroundColor: '#ffffff', eyeColor: '#d81b74' } },
 ];
+
+const cases = [{ name: 'default', data }];
+
+for (const preset of presets) {
+  cases.push({ name: preset.name, data, opts: preset.opts });
+  // Each preset must also stay readable with a centre logo at its max ratio.
+  cases.push({
+    name: `${preset.name}+logo`,
+    data: logoData,
+    opts: { ...preset.opts, errorLevel: 'L', logo: '1', logoRatio: 0.22 },
+  });
+}
+
+cases.push(
+  { name: 'low-contrast-eye-autocorrected', data, opts: { moduleStyle: 'rounded', eyeStyle: 'rounded', foregroundColor: '#0c0c0f', backgroundColor: '#f4f1ea', eyeColor: '#c8a349' } },
+  { name: 'logo-low-level', data: logoData, opts: { errorLevel: 'L', logo: '1', logoRatio: 0.22, moduleStyle: 'rounded', eyeStyle: 'rounded', eyeColor: '#c8a349' } },
+  { name: 'logo-max-ratio', data: logoData, opts: { errorLevel: 'L', logo: '1', logoRatio: 0.5, moduleStyle: 'dots', eyeStyle: 'circle', eyeColor: '#e03a10' } },
+);
 
 let failures = 0;
 for (const c of cases) {

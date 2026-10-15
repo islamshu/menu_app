@@ -86,12 +86,20 @@ const artwork = computed(() => {
     });
 });
 
+const MIN_QR_CONTRAST = 3.5;
+
 const contrastWarn = computed(() => {
     const fg = hexToRgb(form.foreground_color);
     const bg = hexToRgb(form.background_color);
     if (!fg || !bg) return false;
-    const r = contrastRatio(fg, bg);
-    return r < 4.5;
+    return contrastRatio(fg, bg) < MIN_QR_CONTRAST;
+});
+
+const eyeContrastWarn = computed(() => {
+    const eye = hexToRgb(form.eye_color);
+    const bg = hexToRgb(form.background_color);
+    if (!eye || !bg) return false;
+    return contrastRatio(eye, bg) < MIN_QR_CONTRAST;
 });
 
 const filename = computed(() => {
@@ -233,6 +241,9 @@ const print = () => {
                             <InputLabel value="لون عين الرمز (Eye)" />
                             <div class="mt-2 flex gap-2"><input type="color" v-model="form.eye_color" class="h-9 w-12 rounded border" /><TextInput v-model="form.eye_color" dir="ltr" class="flex-1 font-mono uppercase" /></div>
                             <InputError class="mt-1" :message="form.errors.eye_color" />
+                            <p v-if="eyeContrastWarn" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                لون العين فاتح جداً؛ سيتم استخدام لون الوحدات للعين تلقائياً لضمان قراءة الرمز.
+                            </p>
                         </div>
                     </div>
                     <Badge v-if="contrastWarn" variant="warning" class="mt-3">تباين منخفض بين لون الوحدات وخلفية الرمز قد يؤثر على قراءة بعض أجهزة المسح</Badge>
@@ -253,8 +264,11 @@ const print = () => {
                         </div>
                         <div v-if="form.logo_enabled">
                             <InputLabel value="حجم الشعار (Logo Ratio)" />
-                            <TextInput type="number" min="0.1" max="0.3" step="0.01" v-model="form.logo_ratio" dir="ltr" />
+                            <TextInput type="number" min="0.1" max="0.22" step="0.01" v-model="form.logo_ratio" dir="ltr" />
                             <InputError class="mt-1" :message="form.errors.logo_ratio" />
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                عند إدراج الشعار يتم رفع مستوى تصحيح الخطأ تلقائياً إلى الأقصى (H) لضمان قراءة الرمز.
+                            </p>
                         </div>
                     </div>
                 </Card>

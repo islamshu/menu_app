@@ -35,7 +35,12 @@ class UpdateQrCodeRequest extends RestaurantFormRequest
             'eye_color' => $hex,
             'frame_label' => ['nullable', 'string', 'max:60'],
             'logo_enabled' => ['boolean'],
-            'logo_ratio' => ['required', 'numeric', 'min:0.1', 'max:0.3'],
+            'logo_ratio' => [
+                'required',
+                'numeric',
+                'min:'.config('qr.logo.min_ratio', 0.1),
+                'max:'.config('qr.logo.max_ratio', 0.22),
+            ],
         ];
     }
 }

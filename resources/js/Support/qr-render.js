@@ -10,6 +10,38 @@ function hexToRgb(hex) {
     return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
 }
 
+function relativeLuminance(rgb) {
+    const channel = (value) => {
+        const c = value / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
+}
+
+function contrastRatio(a, b) {
+    const l1 = relativeLuminance(a);
+    const l2 = relativeLuminance(b);
+    const light = Math.max(l1, l2);
+    const dark = Math.min(l1, l2);
+    return (light + 0.05) / (dark + 0.05);
+}
+
+// Scanners locate the QR through its three finder (eye) patterns, so the eye
+// colour must contrast strongly with the background or the code becomes
+// unreadable. Colours below this threshold fall back to the foreground/black.
+const MIN_QR_CONTRAST = 3.5;
+
+function ensureContrast(color, backgroundColor, fallback) {
+    const bg = hexToRgb(backgroundColor);
+    if (contrastRatio(hexToRgb(color), bg) >= MIN_QR_CONTRAST) {
+        return color;
+    }
+    if (fallback && contrastRatio(hexToRgb(fallback), bg) >= MIN_QR_CONTRAST) {
+        return fallback;
+    }
+    return relativeLuminance(bg) > 0.5 ? '#000000' : '#ffffff';
+}
+
 /**
  * The 1-based origin of each finder (eye) pattern: [row, col].
  * QR finders are always 7x7 at three corners.
@@ -31,6 +63,25 @@ function finderOriginFor(count, r, c) {
         }
     }
     return null;
+}
+
+const LOGO_MIN_RATIO = 0.1;
+const LOGO_MAX_RATIO = 0.22;
+const LOGO_SAFE_LEVEL = 'H';
+
+/**
+ * A centre logo covers part of the QR, so it can only be recovered when the
+ * error-correction level is high enough. Force the safest level and clamp the
+ * logo size whenever a logo is present.
+ */
+function resolveLogoPolicy(hasLogo, errorLevel, logoRatio) {
+    if (!hasLogo) {
+        return { errorLevel, logoRatio: 0 };
+    }
+
+    const ratio = Math.min(LOGO_MAX_RATIO, Math.max(LOGO_MIN_RATIO, Number(logoRatio) || 0.18));
+
+    return { errorLevel: LOGO_SAFE_LEVEL, logoRatio: ratio };
 }
 
 /**
@@ -117,26 +168,31 @@ function qrSvgInner(text, options = {}) {
         backgroundColor = '#ffffff',
         eyeColor = '#000000',
         logo = '',
+        logoRatio = 0.18,
     } = options;
 
-    const { count, modules } = buildMatrix(text, errorLevel);
+    const policy = resolveLogoPolicy(!!logo, errorLevel, logoRatio);
+    const { count, modules } = buildMatrix(text, policy.errorLevel);
     const m = quietZone * cellSize;
     const size = count * cellSize + m * 2;
+
+    const safeForeground = ensureContrast(foregroundColor, backgroundColor, null);
+    const safeEye = ensureContrast(eyeColor, backgroundColor, safeForeground);
 
     const { normal, eyes } = buildSvgShapes(count, modules, cellSize, m, {
         moduleStyle,
         eyeStyle,
-        foregroundColor,
-        eyeColor,
+        foregroundColor: safeForeground,
+        eyeColor: safeEye,
         logo,
     });
 
     let inner = `<rect x="0" y="0" width="${size}" height="${size}" fill="${backgroundColor}"/>`;
-    inner += `<g fill="${foregroundColor}">${normal}</g>`;
+    inner += `<g fill="${safeForeground}">${normal}</g>`;
     inner += `<g>${eyes}</g>`;
 
     if (logo) {
-        const logoSize = size * 0.22;
+        const logoSize = size * policy.logoRatio;
         const logoX = (size - logoSize) / 2;
         const pad = cellSize * 0.6;
         inner += `<rect x="${(logoX - pad).toFixed(2)}" y="${(logoX - pad).toFixed(2)}" width="${(logoSize + pad * 2).toFixed(2)}" height="${(logoSize + pad * 2).toFixed(2)}" rx="${(pad).toFixed(2)}" fill="${backgroundColor}"/>`;
@@ -194,6 +250,7 @@ export function qrArtworkSvg(text, settings = {}, { label = '', logo = '' } = {}
         background_color = '#ffffff',
         eye_color = '#000000',
         frame_label = '',
+        logo_ratio = 0.18,
     } = settings;
 
     const finalLabel = String(frame_label || label || '').trim();
@@ -206,6 +263,7 @@ export function qrArtworkSvg(text, settings = {}, { label = '', logo = '' } = {}
         backgroundColor: background_color,
         eyeColor: eye_color,
         logo,
+        logoRatio: logo_ratio,
     });
 
     const font = "system-ui, -apple-system, 'Segoe UI', 'IBM Plex Sans Arabic', sans-serif";
@@ -259,9 +317,11 @@ export function qrMatrixRgba(text, options = {}) {
         backgroundColor = '#ffffff',
         eyeColor = '#000000',
         logo = '',
+        logoRatio = 0.18,
     } = options;
 
-    const { count, modules } = buildMatrix(text, errorLevel);
+    const policy = resolveLogoPolicy(!!logo, errorLevel, logoRatio);
+    const { count, modules } = buildMatrix(text, policy.errorLevel);
     const cell = 8;
     const margin = quietZone * cell;
     const width = count * cell + margin * 2;
@@ -269,8 +329,8 @@ export function qrMatrixRgba(text, options = {}) {
     const data = new Uint8ClampedArray(width * height * 4);
 
     const bg = hexToRgb(backgroundColor);
-    const fg = hexToRgb(foregroundColor);
-    const eye = hexToRgb(eyeColor);
+    const fg = hexToRgb(ensureContrast(foregroundColor, backgroundColor, null));
+    const eye = hexToRgb(ensureContrast(eyeColor, backgroundColor, '#' + fg.map((c) => c.toString(16).padStart(2, '0')).join('')));
 
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -333,7 +393,7 @@ export function qrMatrixRgba(text, options = {}) {
 
     // Logo overlay (solid centred square simulating the embedded logo).
     if (logo) {
-        const logoSize = Math.round(width * 0.2);
+        const logoSize = Math.round(width * policy.logoRatio);
         const start = Math.round((width - logoSize) / 2);
         const pad = Math.round(cell * 0.6);
         const bgCol = bg;

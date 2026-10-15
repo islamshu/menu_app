@@ -167,6 +167,18 @@ class QrStudioTest extends TestCase
         $this->put(route('qr.update'), $this->validPayload([
             'logo_ratio' => 0.05,
         ]))->assertSessionHasErrors('logo_ratio');
+
+        // The safe maximum (a larger logo would stop scanners from reading the
+        // code) is accepted, while anything above it is rejected.
+        $max = config('qr.logo.max_ratio');
+
+        $this->put(route('qr.update'), $this->validPayload([
+            'logo_ratio' => $max,
+        ]))->assertSessionHasNoErrors();
+
+        $this->put(route('qr.update'), $this->validPayload([
+            'logo_ratio' => round($max + 0.01, 2),
+        ]))->assertSessionHasErrors('logo_ratio');
     }
 
     public function test_frame_label_max_length(): void
